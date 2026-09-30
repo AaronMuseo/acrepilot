@@ -1,0 +1,9 @@
+node_modules
+.git
+.local
+.npm-cache
+.pnpm-store
+**/.env*
+**/node_modules
+**/dist
+**/.expo

@@ -1,0 +1,38 @@
+{
+  "name": "acrepilot",
+  "private": true,
+  "version": "0.0.1",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev:api": "tsx apps/api/src/main.ts",
+    "dev:fixture": "tsx apps/api/src/dev.ts",
+    "openapi": "tsx scripts/openapi.ts",
+    "dev:mobile": "pnpm --filter @acrepilot/mobile start",
+    "dev:go": "pnpm --filter @acrepilot/mobile exec expo start --go --lan",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "pnpm typecheck && pnpm test",
+    "db:migrate": "tsx apps/api/src/migrate.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "12.1.1",
+    "@nestjs/core": "12.1.1",
+    "@nestjs/platform-express": "12.1.1",
+    "pg": "8.23.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "26.6.3",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "eas-cli": "24.8.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

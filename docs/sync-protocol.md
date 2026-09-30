@@ -1,0 +1,12 @@
+# P0 sync protocol
+
+1. Generate UUIDs on device. SQLite transaction writes the optimistic record (version +1) and an immutable operation with operation ID, device ID, record ID, base version and validated payload. File is account-specific; server owner always comes from the token.
+2. Save every edit separately in increasing SQLite sequence order; operations survive restart. Foreground/open/network change trigger sync. Requests time out after 15 seconds; a foreground retry checks every 30 seconds with exponential failure delay capped at five minutes. Manual Retry is available. Jitter and background scheduling remain P1.
+3. Push accepts at most 50 operations. P0 phone sends one at a time so a failed farm cannot be overtaken by its task. Sync coalesces concurrent triggers into one running promise. Maximum 100 operations and 100 pull pages per pass keep work bounded.
+4. Server transaction locks the clock, checks saved operation acknowledgement, verifies ownership/parent/schema/base version, commits record + change + acknowledgement. A reused operation ID with a different normalized payload is rejected. No client owner claim is accepted. Replay returns the original acknowledgement without another change.
+5. Local acknowledgement removes only its operation. If a newer edit exists, keep the optimistic local value. Invalid/conflicting operations stay visible and block dependencies. A pull never overwrites pending local data.
+6. Pull returns up to 100 owner-scoped changes, including tombstone fields, with a monotonic string cursor. Apply records and cursor atomically. A clock lock makes IDs commit ordered. P0 exposes no deletion endpoint; full archive/delete policy comes later.
+7. Conflict response retains server record in the outbox and current local record in SQLite. User chooses local or server. Resolution audit saves both and the choice; local choice creates a fresh operation based on server version. Unrecoverable/deleted-parent issues remain visible, not discarded.
+8. Unauthorized sync retains local data and asks for same-account online verification. Sign-out with pending work is blocked with an explanation; synced sign-out revokes the server session and clears the secure session pointer. It does not delete the encrypted cache.
+
+`Saved on phone` and `Waiting to sync` do not imply backup. A successful sync timestamp is the time of the last completed sync pass, even when some operations require attention; the visible queue status takes precedence. Force-closed background sync is not promised.

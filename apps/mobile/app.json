@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "AcrePilot Dev",
+    "slug": "acre-pilot",
+    "scheme": "acrepilot",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.acrepilot.dev",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.acrepilot.dev",
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "98af033d-7281-486d-a5f1-02febcb420bb"
+      }
+    },
+    "owner": "aaronmuseo"
+  }
+}
