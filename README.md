@@ -4,13 +4,15 @@
 
 A Kenya-first farming companion built around local saves, clear sync feedback, and English/Kiswahili support. AcrePilot is designed to help farmers manage their farms even when connectivity is unreliable.
 
-> **Development preview · P0 feasibility slice**  
+> **Development preview · P0 + initial P1 foundations**
 > The current app uses test accounts and labelled fixture content. It is not ready for production or agricultural decision-making.
 
 ## What works today
 
+- **Navigation and settings:** Home, Farm, Crops, Tools, Markets, and More; saved language and account-specific acres/hectares/square-metres preferences. Tools and Markets clearly show unavailable states.
+- **Account security preview:** set/change a test password, sign in with it, and renew sessions automatically. Real SMS/email ownership verification remains pending.
 - **Bilingual setup:** English and Kiswahili, with a development verification-code flow.
-- **Farm setup:** one farm and default plot, optional acreage, and explicit unknown soil, water, and location states.
+- **Farm setup:** multiple farms with a default plot each, farm switching and name edits, optional area, and explicit unknown soil, water, and location states.
 - **Offline task updates:** complete or reopen a task, save locally, and queue changes for sync.
 - **Sync recovery:** automatic foreground retries, manual retry, visible pending status, and a successful-sync timestamp.
 - **Conflict handling:** retain both local and server values and let the user choose explicitly.
@@ -153,6 +155,7 @@ No public deployment is configured. The mobile configuration is linked to the ma
 | --- | --- |
 | [Progress](docs/progress.md) | Accepted requirements and implementation checklist |
 | [Validation](docs/validation.md) | Test evidence and remaining acceptance gates |
+| [Account sessions](docs/auth-sessions.md) | Password/session behavior and remaining identity gates |
 | [Architecture](docs/architecture.md) | Design decisions and boundaries |
 | [Sync protocol](docs/sync-protocol.md) | Outbox, retries, conflicts, and isolation |
 | [Data dictionary](docs/data-dictionary.md) | Current records and planned model |

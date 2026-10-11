@@ -42,3 +42,32 @@ From `apps/mobile`, the Android equivalent is `pnpm exec eas build --profile dev
 9. Test large text, VoiceOver/TalkBack, small screen, low battery, full storage, slow/unreachable API, expiry/revocation and repeated foreground triggers. Record cold cached Home time and local-save latency; initial targets ~3 s / 500 ms await calibration.
 
 Record device model/OS/build SHA, timings, screenshots and failures in `validation.md`. Android/iOS bundle exports alone do not check native linking, encryption, signing or physical behavior. Full later-phase scenarios remain in build-plan §18.
+
+## P1 navigation/settings smoke test
+
+1. Open the updated Expo Go preview; confirm the existing farm/task remain.
+2. Visit Home, Farm, Crops, Tools, Markets and More. Tools/Markets should say unavailable; Crops should retain its fixture label.
+3. In More select Kiswahili, then navigate and reload while online. Confirm the language persists. Return to English if desired.
+4. Change area units among acres, hectares and square metres. The farm should represent the same area after each switch and after reload; unknown area stays unknown.
+5. With a fresh fixture account, start a farm draft, navigate to More, change units, and return. Name/area and the original entry unit should remain. Reload online and verify again before saving.
+6. Change the task offline on Home, navigate to More, reconnect and Retry sync. Confirm the edit remains and pending clears. Sign-out with pending changes must retain the account and show an explanation.
+7. Check both languages with large text and VoiceOver. Report any clipped controls or missing labels.
+
+Phone confirmation for this slice is pending; automated SQLite persistence tests do not replace the UI/device test. The local preview address was updated to 192.168.1.6 for this session; use the current computer address when it changes.
+
+## Password/session smoke test
+
+1. In More, find Account security. Use a new made-up password of at least 15 characters.
+2. If prompted to verify again, enter the SAME test identity, request its development code, and verify. Then set the password within 10 minutes.
+3. Wait for Password saved. Confirm pending edits are synced before signing out.
+4. Sign out, enter the same identity and new password, and choose Sign in with password. Confirm the original farm/task return.
+5. Keep the session for over 15 minutes, then Retry sync online: renewal should occur without asking for a code. If offline, edits should still save and reconnect normally later.
+6. Check equivalent Kiswahili messages. This remains synthetic-data testing, not real identity verification.
+
+## Multiple-farm smoke test
+
+1. In Farm choose Add farm, enter a second made-up name and area, then save.
+2. Switch between farms; Home should show each farm's own task. Complete one and confirm the other remains unchanged.
+3. In Farm choose Edit farm name. Disconnect, save a name change, then reconnect and Retry sync in More. The new name should remain.
+4. Reload online and confirm both farms and the selected farm survive. Area values should retain the same physical size across unit changes.
+5. Start an Add farm draft, navigate away/back, choose Add farm again and confirm the draft is retained.

@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -11,8 +11,9 @@ import { migration, type Database } from '../apps/api/src/database';
 import { Repository, type LocalDatabase } from '../apps/mobile/src/repository';
 import { SyncEngine, type SyncTransport } from '../apps/mobile/src/sync';
 import { SliceService } from '../apps/api/src/service';
-import { acresToSquareMetres } from '../packages/domain';
+import { areaUnits, validAreaUnit, areaToSquareMetres, squareMetresToArea, acresToSquareMetres } from '../packages/domain';
 import { messages } from '../packages/translations';
+import { readPreferences, readFarmDraft, saveAreaUnit, saveDraftArea } from '../apps/mobile/src/preferences';
 import { storagePolicy } from '../apps/mobile/src/storage-policy';
 import type { Operation } from '../packages/contracts';
 
@@ -32,7 +33,7 @@ async function account() {
   const challenge = await request('auth/codes', {identity: `${randomUUID()}@example.test`});
   assert.equal(challenge.status, 201);
   const response = await request('auth/verify', {challengeId: challenge.body.challengeId, code: challenge.body.developmentCode});
-  assert.equal(response.status, 201); return response.body as {ownerId: string; token: string};
+  assert.equal(response.status, 201); return response.body as {ownerId: string; token: string; refreshToken: string};
 }
 function local(ownerId: string, file = ':memory:', deviceId = randomUUID()) {
   const sqlite = new DatabaseSync(file);
@@ -160,4 +161,150 @@ test('Expo Go permits only isolated fixture storage; native builds always requir
   assert.equal(native.encrypted, true); assert.equal(preview.encrypted, false);
   assert.notEqual(native.filename, preview.filename);
   assert.throws(() => storagePolicy(owner, true, 'verified_email'), /REQUIRES_FIXTURE_ACCOUNT/);
+});
+
+test('area preferences survive reopening without rewriting farm records or outbox', () => {
+  const owner = randomUUID(); const file = join(work, 'preferences.db');
+  let phone = local(owner, file);
+  phone.repo.createFarm('Units test', 10000);
+  const beforeRecords = phone.repo.list(); const beforeOperations = phone.repo.pending();
+  saveAreaUnit(phone.repo, 'hectares');
+  phone.close(); phone = local(owner, file);
+  assert.equal(readPreferences(phone.repo).areaUnit, 'hectares');
+  assert.equal(squareMetresToArea(10000, readPreferences(phone.repo).areaUnit), 1);
+  assert.deepEqual(phone.repo.list(), beforeRecords);
+  assert.deepEqual(phone.repo.pending(), beforeOperations);
+  const other = local(randomUUID());
+  assert.equal(readPreferences(other.repo).areaUnit, 'acres');
+  other.close(); phone.close();
+});
+
+test('legacy and new draft areas keep their unit when settings change and database reopens', () => {
+  const owner = randomUUID(); const file = join(work, 'draft-units.db');
+  let phone = local(owner, file);
+  phone.repo.setMeta('draftFarmName', 'Unfinished farm');
+  phone.repo.setMeta('draftArea', '2'); // Older releases stored acres with no unit tag.
+  saveAreaUnit(phone.repo, 'hectares');
+  assert.equal(readFarmDraft(phone.repo).unit, 'acres');
+  saveDraftArea(phone.repo, '3', 'hectares');
+  saveAreaUnit(phone.repo, 'squareMetres');
+  phone.close(); phone = local(owner, file);
+  const draft = readFarmDraft(phone.repo);
+  assert.deepEqual(draft, {name: 'Unfinished farm', area: '3', unit: 'hectares'});
+  phone.repo.createFarm(draft.name, areaToSquareMetres(Number(draft.area), draft.unit));
+  const farmData = phone.repo.list().find(r => r.data.kind === 'farm')!.data;
+  assert.ok(farmData.kind === 'farm'); assert.equal(farmData.areaM2, 30000);
+  saveDraftArea(phone.repo, '', draft.unit);
+  assert.equal(readFarmDraft(phone.repo).unit, 'squareMetres');
+  phone.close();
+});
+
+test('area conversions preserve physical area and reject invalid input', () => {
+  for (const unit of areaUnits) {
+    const original = 12345.6789;
+    assert.ok(Math.abs(areaToSquareMetres(squareMetresToArea(original, unit), unit) - original) < 1e-8);
+    for (const invalid of [0, -1, NaN, Infinity]) assert.throws(() => areaToSquareMetres(invalid, unit), /INVALID_AREA/);
+  }
+  assert.equal(areaToSquareMetres(1, 'hectares'), 10000);
+  assert.equal(validAreaUnit('damaged-setting'), 'acres');
+});
+
+test('rotating sessions renew expired access and replay revokes only that session family', async () => {
+  const user = await account();
+  const other = await account();
+  await pg.query("UPDATE sessions SET expires_at=now()-interval '1 second' WHERE owner_id=$1", [user.ownerId]);
+  assert.equal((await request('sync/pull', undefined, user.token)).status, 401);
+  const renewed = await request('sessions/refresh', {refreshToken: user.refreshToken});
+  assert.equal(renewed.status, 201);
+  assert.notEqual(renewed.body.refreshToken, user.refreshToken);
+  assert.equal((await request('sync/pull', undefined, renewed.body.token)).status, 200);
+  assert.equal((await request('sessions/refresh', {refreshToken: user.refreshToken})).status, 401);
+  assert.equal((await request('sync/pull', undefined, renewed.body.token)).status, 401);
+  assert.equal((await request('sessions/refresh', {refreshToken: renewed.body.refreshToken})).status, 401);
+  assert.equal((await request('sync/pull', undefined, other.token)).status, 200);
+});
+
+test('refresh expiry and sign-out prevent future renewal', async () => {
+  const expired = await account();
+  await pg.query("UPDATE sessions SET refresh_expires_at=now()-interval '1 second' WHERE owner_id=$1", [expired.ownerId]);
+  assert.equal((await request('sessions/refresh', {refreshToken: expired.refreshToken})).status, 401);
+  const user = await account();
+  const next = await request('sessions/refresh', {refreshToken: user.refreshToken});
+  assert.equal((await request('sessions/revoke', {}, next.body.token)).status, 201);
+  assert.equal((await request('sessions/refresh', {refreshToken: next.body.refreshToken})).status, 401);
+});
+
+test('password setup needs recent authentication, hashes passwords and revokes older sessions', async () => {
+  const user = await account(); const password = 'test-only passphrase 2026';
+  const identity = (await pg.query<{identity: string}>('SELECT identity FROM accounts WHERE id=$1', [user.ownerId])).rows[0].identity;
+  assert.equal((await request('auth/password', {password: 'short'}, user.token)).status, 400);
+  await pg.query("UPDATE sessions SET authenticated_at=now()-interval '11 minutes' WHERE owner_id=$1", [user.ownerId]);
+  assert.equal((await request('auth/password', {password}, user.token)).body.code, 'REAUTH_REQUIRED');
+  await pg.query('UPDATE sessions SET authenticated_at=now() WHERE owner_id=$1', [user.ownerId]);
+  const changed = await request('auth/password', {password}, user.token);
+  assert.equal(changed.status, 201);
+  assert.equal((await request('sync/pull', undefined, user.token)).status, 401);
+  assert.equal((await request('sessions/refresh', {refreshToken: user.refreshToken})).status, 401);
+  const stored = (await pg.query<{password_hash: string}>('SELECT password_hash FROM accounts WHERE id=$1', [user.ownerId])).rows[0].password_hash;
+  assert.ok(stored.startsWith('scrypt$')); assert.ok(!stored.includes(password));
+  const login = await request('auth/password/login', {identity: identity.toUpperCase(), password});
+  assert.equal(login.status, 201); assert.equal(login.body.ownerId, user.ownerId);
+  assert.equal((await request('sync/pull', undefined, login.body.token)).status, 200);
+  for (let i = 0; i < 4; i++) assert.equal((await request('auth/password/login', {identity, password: 'incorrect test password'})).body.code, 'INVALID_LOGIN');
+  assert.equal((await request('auth/password/login', {identity, password})).status, 429);
+});
+
+test('unknown password identities and unavailable delivery do not create accounts', async () => {
+  const identity = `${randomUUID()}@example.test`;
+  assert.equal((await request('auth/password/login', {identity, password: 'unknown test passphrase'})).body.code, 'INVALID_LOGIN');
+  assert.equal((await pg.query('SELECT id FROM accounts WHERE identity=$1', [identity])).rows.length, 0);
+  const disabled = new SliceService(db, false);
+  await assert.rejects(() => disabled.passwordLogin({identity, password: 'unknown test passphrase'}), /DELIVERY_NOT_CONFIGURED|Http Exception/);
+  await assert.rejects(() => disabled.refresh({refreshToken: 'a'.repeat(64)}));
+});
+
+test('concurrent refresh reuse leaves no active child session', async () => {
+  const user = await account();
+  const results = await Promise.all([request('sessions/refresh', {refreshToken: user.refreshToken}), request('sessions/refresh', {refreshToken: user.refreshToken})]);
+  assert.deepEqual(results.map(r => r.status).sort(), [201, 401]);
+  const success = results.find(r => r.status === 201)!;
+  assert.equal((await request('sync/pull', undefined, success.body.token)).status, 401);
+});
+
+test('P1 migration preserves legacy accounts, sessions and farm records when reapplied', async () => {
+  const legacy = new PGlite();
+  try {
+    await legacy.exec(readFileSync('apps/api/migrations/001_initial.sql', 'utf8'));
+    const owner = randomUUID(); const record = randomUUID();
+    await legacy.query("INSERT INTO accounts(id,identity,verification_kind) VALUES ($1,$2,'development_fixture')", [owner, 'migration@example.test']);
+    await legacy.query("INSERT INTO sessions(token_hash,owner_id,expires_at) VALUES ($1,$2,now()+interval '7 days')", ['legacy-hash', owner]);
+    await legacy.query('INSERT INTO records(id,owner_id,version,data) VALUES ($1,$2,1,$3)', [record, owner, {kind:'farm',name:'Retained'}]);
+    await legacy.exec(migration()); await legacy.exec(migration());
+    assert.equal((await legacy.query('SELECT id FROM accounts WHERE id=$1', [owner])).rows.length, 1);
+    assert.deepEqual((await legacy.query<{data: unknown}>('SELECT data FROM records WHERE id=$1', [record])).rows[0].data, {kind:'farm',name:'Retained'});
+    const row = (await legacy.query<{refresh_hash: string | null; revoked: boolean}>('SELECT refresh_hash,revoked FROM sessions WHERE token_hash=$1', ['legacy-hash'])).rows[0];
+    assert.equal(row.refresh_hash, null); assert.equal(row.revoked, false);
+  } finally { await legacy.close(); }
+});
+
+test('multiple farms retain selected farm and pair tasks after offline restart and sync', async () => {
+  const user = await account(); const file = join(work, 'multiple-farms.db');
+  let phone = local(user.ownerId, file);
+  const first = phone.repo.createFarm('First farm', null); const second = phone.repo.createFarm('Second farm', 10000);
+  phone.repo.selectFarm(second);
+  const task = phone.repo.list().find(r => r.data.kind === 'task' && r.data.farmId === second)!;
+  assert.ok(task.data.kind === 'task'); phone.repo.save(task.id, {...task.data, done:true});
+  phone.repo.renameFarm(first, 'Renamed first farm');
+  phone.close(); phone = local(user.ownerId, file);
+  assert.equal(phone.repo.farms().length, 2); assert.equal(phone.repo.selectedFarm()!.id, second);
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.equal(phone.repo.pending().length, 0);
+  const remote = (await request('sync/pull', undefined, user.token)).body.records;
+  assert.ok(remote.some((r: any) => r.id === first && r.data.name === 'Renamed first farm'));
+  assert.ok(remote.some((r: any) => r.id === task.id && r.data.done === true && r.data.farmId === second));
+  assert.equal(phone.repo.get(second)!.data.kind, 'farm');
+  const secondData = phone.repo.get(second)!.data; assert.ok(secondData.kind === 'farm'); assert.equal(secondData.areaM2,10000);
+  assert.throws(() => phone.repo.selectFarm(randomUUID()), /FARM_NOT_FOUND/);
+  assert.throws(() => phone.repo.renameFarm(task.id, 'Not a farm'), /FARM_NOT_FOUND/);
+  phone.close();
 });

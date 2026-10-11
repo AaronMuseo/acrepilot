@@ -10,6 +10,9 @@ class SliceController {
   @Get('health') health() { return { status: 'ok', scope: 'P0 development slice' }; }
   @Post('auth/codes') codes(@Body() body: unknown) { return this.service.requestCode(body); }
   @Post('auth/verify') verify(@Body() body: unknown) { return this.service.verify(body); }
+  @Post('auth/password/login') passwordLogin(@Body() body: unknown) { return this.service.passwordLogin(body); }
+  @Post('auth/password') setPassword(@Headers('authorization') token: string, @Body() body: unknown) { return this.service.setPassword(token, body); }
+  @Post('sessions/refresh') refresh(@Body() body: unknown) { return this.service.refresh(body); }
   @Post('sessions/revoke') revoke(@Headers('authorization') token?: string) { return this.service.revoke(token); }
   @Post('sync/push') async push(@Headers('authorization') token: string, @Body() body: unknown) { return this.service.push(await this.service.owner(token), body); }
   @Get('sync/pull') async pull(@Headers('authorization') token: string, @Query('cursor') cursor?: string) { return this.service.pull(await this.service.owner(token), cursor); }

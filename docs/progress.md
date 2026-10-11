@@ -38,7 +38,7 @@ Updated 2026-10-01. The full accepted specification is `build-plan.md`; no accep
 |---|---|---|
 | R01 | P1 | Fixture OTP/session tests only; real phone/email, password/code login, linking, rotation/recovery pending |
 | R02 | P1 onward | Bilingual first slice; full settings, units/navigation and reviewed terminology pending |
-| R03 | P2 | One local farm/default plot; multiple farms/plots, pins/resources/conditions pending |
+| R03 | P2 | Multiple local farms with default plots, selected-farm tasks and name edits; plot subdivision, pins/resources/conditions pending |
 | R04 | P2 | Owned/leased, sold, expansion, split/merge and preserved area history pending |
 | R05 | P3 | Explicit test guide only; 20 reviewed crops (5/10/5), varieties, comparisons/custom entries pending |
 | R06 | P3 | Source register started; admin, publication, translations/versioning/citations workflow pending |
@@ -80,3 +80,60 @@ Deferred items remain exactly those listed in specification section 2; none are 
 - [x] iPhone 13 Pro Expo Go offline-edit/reconnection test passed by Aaron's confirmation: task changed offline, Waiting to sync appeared, reconnecting and Retry sync preserved the edit, status became Synced, and the successful-sync timestamp updated. App restart, server-side duplicate-count verification, and signed-build encryption remain separate unverified gates.
 
 - [x] Prepared GitHub-facing README with current scope, local setup, architecture, verification limits, and documentation links. Expanded .gitignore for environment secrets, signing material, local databases, generated native projects, builds, and logs; verified safe examples and lockfile remain includable. No GitHub repository creation or push performed.
+
+## Continuation review — 2026-10-11
+
+- [x] Reviewed current implementation and accepted phase gates; recorded the next credential-free P1 workflow in [next-slice.md](next-slice.md).
+- [ ] Implement the bilingual navigation/persistent-settings slice and its acceptance checks. P0 native/device/provider gates remain open.
+
+## P1 navigation and settings slice — 2026-10-11
+
+- [x] Six bilingual routes: Home, Farm, Crops, Tools, Markets, More; wrapped navigation stays visible while content scrolls.
+- [x] Shared provider owns the session/repository/sync lifecycle across routes. Existing record IDs, database filenames and schema remain compatible.
+- [x] Home retains the task, Farm shows/setup the farm, Crops contains the labelled fixture guide, Tools/Markets explicitly show unavailable states.
+- [x] More provides language, account-local area-unit preferences, retry/last-sync feedback, conflict resolution and guarded sign-out.
+- [x] Acres/hectares/square metres use canonical square metres; unfinished drafts keep their entry unit, including legacy acre drafts.
+- [x] Network, server failure, expired session and rejected-record feedback are distinct and translated.
+- [x] Thirteen integration tests pass, including reopened preferences/drafts and unchanged record/outbox assertions.
+- [ ] iPhone smoke test for the new navigation/settings UI; translation and screen-reader/large-text review remain open.
+
+Language remains a device preference (existing SecureStore key); area units and farm drafts are isolated per account. No new services, credentials, production authentication, or reviewed crop data have been enabled. P0 native gates and full P1 acceptance remain open.
+
+- [x] P1 slice validation: TypeScript, 13 integration tests, Android/iOS Expo exports passed. Phone smoke test remains open.
+
+- [x] Moved all six destinations into a fixed bottom navigation bar with symbols, translated labels, selected/pressed states and safe-area spacing. At larger system text sizes it wraps to two rows. Typecheck passed; phone appearance confirmation pending.
+
+## P1 password/session slice — 2026-10-11
+
+- [x] Password setup/change and password sign-in for existing fixture phone/email accounts; hashed passwords, recent-authentication requirement, persisted attempt limits.
+- [x] Short-lived opaque access tokens, hashed rotating refresh tokens, reuse detection and family revocation.
+- [x] Mobile renewal coalesces concurrent failures and saves credentials securely before retry; offline records remain available.
+- [x] Additive migration 002, code-delivery interface with fixture adapter, updated OpenAPI and bilingual security UI in More.
+- [ ] Phone password setup, sign-out/sign-in and renewal smoke test.
+- [ ] Real SMS/email providers, verified-channel linking/recovery, admin and full P1 acceptance remain open. See auth-sessions.md.
+
+- [x] Password/session validation: 22 tests, typecheck and Android/iOS exports passed; additive legacy migration verified.
+
+- [ ] Aaron reported a blank password sign-in button label. Both translation keys are present; restarted Metro with a cleared cache to rule out stale shared translations. Phone confirmation pending.
+
+- [x] Added immediate English/Kiswahili sign-in validation beside identity/password/code fields, preserved separate code-only login, cleared obsolete challenges when identity changes, and placed server errors/progress within the sign-in form. Typecheck and focused validation tests run; phone confirmation pending.
+
+## Farm management slice — 2026-10-11
+
+Aaron asked to proceed with farm work and defer remaining sign-in work. R01 remains accepted; its outstanding requirements and phone checks are retained.
+
+- [x] Multiple farms using the existing account-isolated records/outbox and one fixture task per farm.
+- [x] Selected farm persists locally per account; Home shows the matching farm's task.
+- [x] Farm tab lists/selects farms and creates new farms with saved name/area drafts and the current unit policy.
+- [x] Rename a farm offline, preserving its ID, area, plot reference and task links; draft name retained locally until saved.
+- [ ] Phone smoke test: add a second fake farm, switch farms, rename offline, reconnect and sync.
+- [ ] Full P2: explicit plot entities/subdivision, resources/conditions/map, land tenure, dated area revisions and split/merge/sale remain planned.
+
+Area editing is reserved for the revision/history workflow. No farm data is deleted and no new agronomy is supplied.
+
+- [x] Farm slice validation: typecheck, 25 tests, Android/iOS bundle exports pass. Sign-in follow-up remains deferred at Aaron's request; phone farm-flow check pending.
+
+## Next-session reminder — 2026-10-11
+
+- [ ] Aaron reports some app items are missing/not visible on his iPhone; affected screens and cause not yet identified. Remind him when resuming, reproduce and fix before more feature work. See resume.md.
+- Session stopped at Aaron's request; he will commit/push himself. Sign-in follow-up remains deferred.

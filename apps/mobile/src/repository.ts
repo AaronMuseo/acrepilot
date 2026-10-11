@@ -52,6 +52,20 @@ export class Repository {
       return farmId;
     });
   }
+  farms() { return this.list().filter(record => !record.deleted && record.data.kind === 'farm'); }
+  selectedFarm() {
+    const farms = this.farms();
+    return farms.find(record => record.id === this.meta('selectedFarmId')) ?? farms[0];
+  }
+  selectFarm(id: string) {
+    if (!this.farms().some(record => record.id === id)) throw new Error('FARM_NOT_FOUND');
+    this.setMeta('selectedFarmId', id);
+  }
+  renameFarm(id: string, name: string) {
+    const record = this.get(id);
+    if (!record || record.deleted || record.data.kind !== 'farm') throw new Error('FARM_NOT_FOUND');
+    return this.save(id, {...record.data, name});
+  }
   pending() { return this.db.getAllSync<OutboxRow>('SELECT * FROM outbox ORDER BY sequence'); }
   // Stop at a failure so dependent task/farm writes cannot overtake it.
   batch(): Operation[] {

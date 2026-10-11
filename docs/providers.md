@@ -20,3 +20,5 @@ References: [Open-Meteo terms](https://open-meteo.com/en/terms) separate free no
 ## Environment
 
 `DATABASE_URL`: server-only PostgreSQL connection. `NODE_ENV=development` + `DEV_FIXTURE_AUTH=true`: explicit fixture auth opt-in for normal API. `API_HOST`: loopback default. `PORT`: 3000 default. `EXPO_PUBLIC_API_URL`: non-secret reachable HTTPS API base URL (not configured for the iPhone yet). EAS project is linked; Apple signing is still unset. Production auth defaults unavailable until an actual delivery adapter exists.
+
+P1 update (2026-10-11): fixture password login and rotating sessions are implemented; real verification is still not configured. The code-delivery interface has only a fixture adapter. Provider credentials, sender/domain qualification, reliable delivery workflow and live ownership tests remain required. See auth-sessions.md.

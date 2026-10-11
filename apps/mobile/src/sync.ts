@@ -7,6 +7,7 @@ export interface SyncTransport {
 export class SyncEngine {
   private flight?: Promise<void>;
   constructor(readonly repository: Repository, readonly transport: SyncTransport) {}
+  waitUntilIdle(): Promise<void> { return this.flight ?? Promise.resolve(); }
   run(): Promise<void> {
     if (!this.flight) this.flight = this.sync().finally(() => { this.flight = undefined; });
     return this.flight;

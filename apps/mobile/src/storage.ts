@@ -6,7 +6,8 @@ import { Repository } from './repository';
 import { storagePolicy } from './storage-policy';
 export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 const sessionKey = isExpoGo ? 'expo-go-fixture-session' : 'session';
-export type Session = { ownerId: string; token: string; verificationKind: 'development_fixture' };
+export type { AuthSession as Session } from '../../../packages/contracts';
+import type { AuthSession as Session } from '../../../packages/contracts';
 export const loadSession = async (): Promise<Session | null> => {
   const value = await SecureStore.getItemAsync(sessionKey); return value ? JSON.parse(value) : null;
 };

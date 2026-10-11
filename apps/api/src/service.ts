@@ -1,7 +1,9 @@
 import { createHash, randomInt, randomBytes, randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
-import { codeRequestSchema, verifySchema, pushSchema, type Ack, type Operation, type ServerRecord } from '../../../packages/contracts';
+import { codeRequestSchema, verifySchema, pushSchema, passwordLoginSchema, setPasswordSchema, refreshSchema, type Ack, type Operation, type ServerRecord } from '../../../packages/contracts';
 import type { Database, Queryable } from './database';
+import { hashPassword, checkPassword } from './passwords';
+import { FixtureDelivery } from './code-delivery';
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 const fail = (code: string, status = 400): never => { throw new HttpException({ code }, status); };
@@ -22,7 +24,8 @@ export class SliceService {
       const challengeId = randomUUID(); const code = String(randomInt(100000, 1000000));
       await tx.query('UPDATE challenges SET consumed=true WHERE identity=$1', [identity]);
       await tx.query("INSERT INTO challenges(id,identity,code_hash,expires_at) VALUES ($1,$2,$3,now()+interval '5 minutes')", [challengeId, identity, hash(challengeId + code)]);
-      return { challengeId, developmentCode: code, verificationKind: 'development_fixture' };
+      const delivery = await new FixtureDelivery().deliver(identity, code);
+      return { challengeId, ...delivery, verificationKind: 'development_fixture' };
     });
   }
   async verify(body: unknown) {
@@ -36,11 +39,67 @@ export class SliceService {
       if (row.code_hash !== hash(challengeId + code)) return null;
       await tx.query('UPDATE challenges SET consumed=true WHERE id=$1', [challengeId]);
       const account = (await tx.query("INSERT INTO accounts(id,identity,verification_kind) VALUES ($1,$2,'development_fixture') ON CONFLICT(identity) DO UPDATE SET identity=EXCLUDED.identity RETURNING id", [randomUUID(), row.identity])).rows[0];
-      const token = randomBytes(32).toString('hex');
-      await tx.query("INSERT INTO sessions(token_hash,owner_id,expires_at) VALUES ($1,$2,now()+interval '7 days')", [hash(token), account.id]);
-      return { ownerId: account.id as string, token, verificationKind: 'development_fixture' };
+      return this.issueSession(tx, account.id);
     });
     return result ?? fail('INVALID_OR_EXPIRED_CODE', 401);
+  }
+  private async issueSession(tx: Queryable, ownerId: string, familyId = randomUUID(), authenticatedAt = new Date(), refreshExpiry = new Date(Date.now() + 30 * 86400000)) {
+    const token = randomBytes(32).toString('hex'); const refreshToken = randomBytes(32).toString('hex');
+    await tx.query("INSERT INTO sessions(token_hash,owner_id,expires_at,family_id,refresh_hash,refresh_expires_at,authenticated_at) VALUES ($1,$2,now()+interval '15 minutes',$3,$4,$5,$6)", [hash(token), ownerId, familyId, hash(refreshToken), refreshExpiry, authenticatedAt]);
+    return {ownerId, token, refreshToken, verificationKind: 'development_fixture' as const};
+  }
+  async refresh(body: unknown) {
+    if (!this.fixtureAuth) fail('DELIVERY_NOT_CONFIGURED', 503);
+    const {refreshToken} = parse<{refreshToken: string}>(refreshSchema, body);
+    const result = await this.db.transaction(async tx => {
+      await tx.query('SELECT id FROM change_clock WHERE id=1 FOR UPDATE');
+      const row = (await tx.query('SELECT *, refresh_expires_at > now() AS valid FROM sessions WHERE refresh_hash=$1 FOR UPDATE', [hash(refreshToken)])).rows[0];
+      if (!row) return null;
+      if (row.refresh_consumed) {
+        await tx.query('UPDATE sessions SET revoked=true WHERE family_id=$1', [row.family_id]);
+        return null;
+      }
+      if (row.revoked || !row.valid) return null;
+      await tx.query('UPDATE sessions SET revoked=true,refresh_consumed=true WHERE token_hash=$1', [row.token_hash]);
+      return this.issueSession(tx, row.owner_id, row.family_id, row.authenticated_at, row.refresh_expires_at);
+    });
+    return result ?? fail('UNAUTHORIZED', 401);
+  }
+  async passwordLogin(body: unknown) {
+    if (!this.fixtureAuth) fail('DELIVERY_NOT_CONFIGURED', 503);
+    const {identity, password} = parse<{identity: string; password: string}>(passwordLoginSchema, body);
+    // Persist attempts before checking the password; failed requests cannot roll back the limit.
+    const allowed = await this.db.transaction(async tx => {
+      await tx.query('SELECT id FROM change_clock WHERE id=1 FOR UPDATE');
+      const key = hash('password:' + identity);
+      await tx.query("INSERT INTO auth_limits(key,attempts,reset_at) VALUES ($1,1,now()+interval '15 minutes') ON CONFLICT(key) DO UPDATE SET attempts=CASE WHEN auth_limits.reset_at <= now() THEN 1 ELSE auth_limits.attempts+1 END, reset_at=CASE WHEN auth_limits.reset_at <= now() THEN now()+interval '15 minutes' ELSE auth_limits.reset_at END", [key]);
+      return (await tx.query('SELECT attempts FROM auth_limits WHERE key=$1', [key])).rows[0].attempts <= 5;
+    });
+    if (!allowed) fail('LOGIN_COOLDOWN', 429);
+    const account = (await this.db.query('SELECT * FROM accounts WHERE identity=$1', [identity])).rows[0];
+    if (!(await checkPassword(password, account?.password_hash))) fail('INVALID_LOGIN', 401);
+    return this.db.transaction(async tx => {
+      await tx.query('SELECT id FROM change_clock WHERE id=1 FOR UPDATE');
+      const current = (await tx.query('SELECT password_hash FROM accounts WHERE id=$1', [account.id])).rows[0];
+      if (current.password_hash !== account.password_hash) fail('INVALID_LOGIN', 401);
+      return this.issueSession(tx, account.id);
+    });
+  }
+  async setPassword(authorization: string | undefined, body: unknown) {
+    if (!this.fixtureAuth) fail('DELIVERY_NOT_CONFIGURED', 503);
+    const ownerId = await this.owner(authorization);
+    const {password} = parse<{password: string}>(setPasswordSchema, body);
+    const fresh = (await this.db.query("SELECT owner_id FROM sessions WHERE token_hash=$1 AND NOT revoked AND authenticated_at > now()-interval '10 minutes'", [hash(authorization!.slice(7))])).rows[0];
+    if (!fresh) fail('REAUTH_REQUIRED', 401);
+    const passwordHash = await hashPassword(password);
+    return this.db.transaction(async tx => {
+      await tx.query('SELECT id FROM change_clock WHERE id=1 FOR UPDATE');
+      const recent = (await tx.query("SELECT owner_id FROM sessions WHERE token_hash=$1 AND NOT revoked AND expires_at > now() AND authenticated_at > now()-interval '10 minutes'", [hash(authorization!.slice(7))])).rows[0];
+      if (!recent || recent.owner_id !== ownerId) fail('REAUTH_REQUIRED', 401);
+      await tx.query('UPDATE accounts SET password_hash=$1 WHERE id=$2', [passwordHash, ownerId]);
+      await tx.query('UPDATE sessions SET revoked=true WHERE owner_id=$1', [ownerId]);
+      return this.issueSession(tx, ownerId);
+    });
   }
   async owner(authorization?: string) {
     const token = authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
@@ -49,9 +108,18 @@ export class SliceService {
     return row?.owner_id as string || fail('UNAUTHORIZED', 401);
   }
   async revoke(authorization?: string) {
-    await this.owner(authorization);
-    await this.db.query('UPDATE sessions SET revoked=true WHERE token_hash=$1', [hash(authorization!.slice(7))]);
-    return { revoked: true };
+    const token = authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+    if (!token) fail('UNAUTHORIZED', 401);
+    const revoked = await this.db.transaction(async tx => {
+      // Order revocation against renewal so no new child session escapes sign-out.
+      await tx.query('SELECT id FROM change_clock WHERE id=1 FOR UPDATE');
+      const row = (await tx.query('SELECT family_id FROM sessions WHERE token_hash=$1 AND NOT revoked AND expires_at > now()', [hash(token!)])).rows[0];
+      if (!row) return false;
+      await tx.query('UPDATE sessions SET revoked=true WHERE token_hash=$1 OR family_id=$2', [hash(token!), row.family_id]);
+      return true;
+    });
+    if (!revoked) fail('UNAUTHORIZED', 401);
+    return {revoked: true};
   }
   async push(ownerId: string, body: unknown): Promise<{ acknowledgements: Ack[] }> {
     const { operations } = parse<{operations: Operation[]}>(pushSchema, body);

@@ -8,7 +8,11 @@ export async function request(path: string, body?: unknown, token?: string) {
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    if (!response.ok) throw new Error(response.status === 401 ? 'UNAUTHORIZED' : 'REQUEST_FAILED');
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      const known = ['INVALID_LOGIN', 'LOGIN_COOLDOWN', 'REAUTH_REQUIRED', 'RESEND_COOLDOWN', 'INVALID_OR_EXPIRED_CODE', 'INVALID_INPUT'];
+      throw new Error(known.includes(detail.code) ? detail.code : response.status === 401 ? 'UNAUTHORIZED' : 'REQUEST_FAILED');
+    }
     return await response.json();
   } finally { clearTimeout(timer); }
 }

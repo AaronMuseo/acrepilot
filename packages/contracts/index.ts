@@ -27,3 +27,9 @@ export const identitySchema = z.string().trim().max(254).transform(v => v.toLowe
 );
 export const codeRequestSchema = z.object({ identity: identitySchema }).strict();
 export const verifySchema = z.object({ challengeId: uuid, code: z.string().regex(/^\d{6}$/) }).strict();
+
+export const passwordSchema = z.string().min(15).max(128);
+export const passwordLoginSchema = z.object({identity: identitySchema, password: passwordSchema}).strict();
+export const setPasswordSchema = z.object({password: passwordSchema}).strict();
+export const refreshSchema = z.object({refreshToken: z.string().regex(/^[a-f0-9]{64}$/)}).strict();
+export type AuthSession = {ownerId: string; token: string; refreshToken?: string; verificationKind: 'development_fixture'};

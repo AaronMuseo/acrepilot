@@ -52,3 +52,17 @@ Aaron confirmed Retry sync feedback and the successful-sync timestamp work in Ex
 - User device check: Aaron confirmed the offline task-change / Waiting to sync flow works on iPhone 13 Pro in Expo Go. Reconnection of that pending edit remains unconfirmed.
 
 - Aaron confirmed the complete Expo Go offline-edit/reconnection flow on iPhone 13 Pro: local task change and Waiting to sync while disconnected; edit retained, Synced status, and updated timestamp after Wi-Fi reconnection and Retry sync. This is user-observed device evidence; it does not establish offline app restart, native encryption, or server-side operation counts.
+
+### Continuation baseline — 2026-10-11
+Type checking passed. All ten integration tests passed when rerun with local network access. The initial restricted run failed seven HTTP-based cases with loopback EACCES; the three non-HTTP cases passed. No application code changed during this review. Remote CI was not queried.
+
+### P1 navigation/settings — 2026-10-11
+Type checking and all 13 integration tests passed. Android and iOS Expo exports passed. New tests verify persisted account-scoped area units without record/outbox mutation, retained legacy/new draft units after reopen, and conversion round trips/invalid input. Existing ownership, retry, conflict and rollback tests still pass. No native schema migration was required. Phone navigation, language reload, large-text/VoiceOver and the new settings workflow remain to be confirmed using docs/device-test.md.
+
+### Password/session foundation — 2026-10-11
+Type checking and all 22 tests passed. New coverage includes expired access renewal, refresh expiry/replay/concurrency, family revocation, recent-auth password setup, hashed storage, attempt limits, unavailable auth, concurrent mobile renewal, secure-persistence failure, and legacy database migration retention/reapplication. Android/iOS Expo exports passed. Password and renewal phone testing remains pending; this does not establish real phone/email ownership.
+
+### Multiple-farm workflow — 2026-10-11
+Type checking and all 25 tests passed. New integration coverage creates two farms offline, selects one, edits its task and the other's name, reopens the local database, synchronizes, and checks preserved farm/task associations and area. Invalid farm selections and task-as-farm edits are rejected. Phone workflow confirmation remains pending.
+
+Farm slice mobile verification: Android and iOS Expo bundle exports completed successfully; final typecheck passed.

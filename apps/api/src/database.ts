@@ -14,4 +14,4 @@ export class PostgresDatabase implements Database {
     finally { client.release(); }
   }
 }
-export const migration = () => readFileSync(resolve('apps/api/migrations/001_initial.sql'), 'utf8');
+export const migration = () => ['001_initial.sql', '002_sessions.sql'].map(file => readFileSync(resolve('apps/api/migrations', file), 'utf8')).join('\n');
