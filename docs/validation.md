@@ -66,3 +66,20 @@ Type checking and all 22 tests passed. New coverage includes expired access rene
 Type checking and all 25 tests passed. New integration coverage creates two farms offline, selects one, edits its task and the other's name, reopens the local database, synchronizes, and checks preserved farm/task associations and area. Invalid farm selections and task-as-farm edits are rejected. Phone workflow confirmation remains pending.
 
 Farm slice mobile verification: Android and iOS Expo bundle exports completed successfully; final typecheck passed.
+
+2026-10-12 Farm visibility refinement: Typecheck passed. Add/edit actions moved before lists/details, preview warnings compacted, and expired-session form scoped to More. Phone verification pending; existing records/schema unchanged.
+
+Clean Expo preview verification: iOS manifest and rebuilt JavaScript bundle both returned HTTP 200. No physical-device visibility confirmation is claimed.
+
+### Farm-area history — 2026-10-12
+Typecheck and all 28 tests passed. Added offline restart and lost-ack retry coverage, date/reason validation, JSONB key-order tolerance, server rejection of missing/rewritten history, unknown-area handling, and two-device conflict resolution with retained audit. OpenAPI regenerated; Android/iOS exports passed. Phone rendering and workflow confirmation remain pending.
+
+### Plot naming and selection — 2026-10-12
+Typecheck and all 31 tests passed. Added per-farm selection/offline restart, lost-ack retries without duplicates, immutable/owned/live farm parent checks, legacy default-ID retention and explicit concurrent-name conflict resolution. OpenAPI regenerated. Android/iOS exports passed; final default-name conflict-label adjustment typechecked. Phone plot workflow remains pending.
+
+Control clarity: shared action/input/selection styles typecheck; Android and iOS exports pass; live iOS preview bundle returns HTTP 200. Physical-phone visual confirmation remains pending.
+
+Plot areas: typecheck and all 34 tests passed. Coverage adds offline history persistence, local capacity rejection, reductions, concurrent server allocations and recovery, missing-history rejection, legacy default materialization and unknown farm totals. OpenAPI regenerated.
+Plot-area Android/iOS exports passed; refreshed iOS bundle and API health both returned HTTP 200. Phone testing remains pending.
+
+Rendered UI check: actual AreaEditor through React Native Web, 390px container, fake app-state adapter. Verified visible heading/labels, empty input error, valid 5,000 m² save closing the editor, reopened value. Screenshot .local/area-editor-ui-check.png. This does not establish native keyboard behaviour, actual SQLite persistence or resolution of Aaron’s phone symptom. Fresh Metro restarted; physical confirmation pending.

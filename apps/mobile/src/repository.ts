@@ -1,3 +1,4 @@
+import { reviseArea, todayInKenya } from '../../../packages/domain/land';
 import { recordSchema, type Ack, type Operation, type RecordData, type ServerRecord } from '../../../packages/contracts';
 
 export interface LocalDatabase {
@@ -46,8 +47,9 @@ export class Repository {
   save(id: string, data: RecordData) { return this.transaction(() => this.enqueue(id, data)); }
   createFarm(name: string, areaM2: number | null) {
     return this.transaction(() => {
-      const farmId = this.uuid(); const taskId = this.uuid();
-      this.enqueue(farmId, { kind: 'farm', name, plotId: this.uuid(), areaM2, location: null, soil: 'unknown', water: 'unknown' });
+      const farmId = this.uuid(); const taskId = this.uuid(); const plotId = this.uuid();
+      this.enqueue(farmId, { kind: 'farm', name, plotId, areaM2, location: null, soil: 'unknown', water: 'unknown' });
+      this.enqueue(plotId, {kind: 'plot', farmId, name: null, areaM2: null, soil: 'unknown', water: 'unknown'});
       this.enqueue(taskId, { kind: 'task', farmId, titleKey: 'fixtureTask', done: false });
       return farmId;
     });
@@ -65,6 +67,62 @@ export class Repository {
     const record = this.get(id);
     if (!record || record.deleted || record.data.kind !== 'farm') throw new Error('FARM_NOT_FOUND');
     return this.save(id, {...record.data, name});
+  }
+  reviseFarmArea(id: string, areaM2: number, effectiveDate: string, reason: 'correction' | 'expansion' | 'reduction') {
+    const record = this.get(id);
+    if (!record || record.deleted || record.data.kind !== 'farm') throw new Error('FARM_NOT_FOUND');
+    this.checkPlotCapacity(id, areaM2);
+    return this.save(id, reviseArea(record.data, areaM2, effectiveDate, reason, this.uuid));
+  }
+  plots(farmId: string): LocalRecord[] {
+    const farm = this.get(farmId);
+    if (!farm || farm.deleted || farm.data.kind !== 'farm') return [];
+    const plots = this.list().filter(r => !r.deleted && r.data.kind === 'plot' && r.data.farmId === farmId);
+    // Older farms already reserved this ID. Display it without inventing an area or writing during render.
+    if (!this.get(farm.data.plotId)) plots.unshift({id: farm.data.plotId, version: 0, deleted: false,
+      data: {kind: 'plot', farmId, name: null, areaM2: null, soil: 'unknown', water: 'unknown'}});
+    return plots;
+  }
+  selectedPlot(farmId: string) {
+    const plots = this.plots(farmId);
+    return plots.find(r => r.id === this.meta('selectedPlot:' + farmId)) ?? plots[0];
+  }
+  selectPlot(farmId: string, id: string) {
+    if (!this.plots(farmId).some(r => r.id === id)) throw new Error('PLOT_NOT_FOUND');
+    this.setMeta('selectedPlot:' + farmId, id);
+  }
+  createPlot(farmId: string, name: string) {
+    const farm = this.get(farmId);
+    if (!farm || farm.deleted || farm.data.kind !== 'farm') throw new Error('FARM_NOT_FOUND');
+    return this.transaction(() => {
+      const id = this.uuid();
+      this.enqueue(id, {kind: 'plot', farmId, name, areaM2: null, soil: 'unknown', water: 'unknown'});
+      this.selectPlot(farmId, id); return id;
+    });
+  }
+  renamePlot(farmId: string, id: string, name: string) {
+    const plot = this.plots(farmId).find(r => r.id === id);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    return this.save(id, {...plot.data, name});
+  }
+  checkPlotCapacity(id: string, areaM2: number) {
+    const record = this.get(id);
+    if (!record || record.data.kind === 'task') return;
+    const farmId = record.data.kind === 'farm' ? id : record.data.farmId;
+    const farm = this.get(farmId)!;
+    const total = record.data.kind === 'farm' ? areaM2 : farm.data.kind === 'farm' ? farm.data.areaM2 : null;
+    const known = this.plots(farmId).reduce((sum, plot) => sum + (plot.id === id ? areaM2 : plot.data.kind === 'plot' ? plot.data.areaM2 ?? 0 : 0), 0);
+    if (total !== null && known > total + 0.000001) throw new Error('PLOT_AREA_EXCEEDS_FARM');
+  }
+  revisePlotArea(farmId: string, id: string, areaM2: number, date: string, reason: 'correction' | 'expansion' | 'reduction') {
+    const plot = this.plots(farmId).find(r => r.id === id);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    const next = reviseArea(plot.data, areaM2, date, reason, this.uuid);
+    return this.transaction(() => {
+      if (!this.get(id)) this.enqueue(id, plot.data);
+      this.checkPlotCapacity(id, areaM2);
+      return this.enqueue(id, next);
+    });
   }
   pending() { return this.db.getAllSync<OutboxRow>('SELECT * FROM outbox ORDER BY sequence'); }
   // Stop at a failure so dependent task/farm writes cannot overtake it.
@@ -104,7 +162,22 @@ export class Repository {
       this.db.runSync('INSERT INTO resolutions(record_id,local_data,server_data,choice,created_at) VALUES (?,?,?,?,?)', id, JSON.stringify(local), JSON.stringify(ack.record), choice, new Date().toISOString());
       this.db.runSync('DELETE FROM outbox WHERE record_id=?', id);
       this.put(ack.record);
-      if (choice === 'mine') this.enqueue(id, local.data);
+      if (choice === 'mine') {
+        let data = local.data;
+        if ((data.kind === 'farm' && ack.record.data.kind === 'farm') || (data.kind === 'plot' && ack.record.data.kind === 'plot')) {
+          const server = ack.record.data;
+          const area = data.areaM2;
+          if (area !== null && area !== server.areaM2) {
+            const revised = reviseArea(server, area, todayInKenya(), 'correction', this.uuid);
+            data = revised.kind === 'farm' ? {...revised, name: data.name ?? revised.name} : {...revised, name: data.name};
+          } else {
+            // Keep the accepted area history when resolving a name-only edit.
+            data = server.kind === 'farm' ? {...server, name: data.name ?? server.name} : {...server, name: data.name};
+          }
+        }
+        if (data.kind !== 'task' && data.areaM2 !== null) this.checkPlotCapacity(id, data.areaM2);
+        this.enqueue(id, data);
+      }
     });
   }
 }

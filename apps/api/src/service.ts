@@ -1,3 +1,4 @@
+import { areaChangeError } from '../../../packages/domain/land';
 import { createHash, randomInt, randomBytes, randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import { codeRequestSchema, verifySchema, pushSchema, passwordLoginSchema, setPasswordSchema, refreshSchema, type Ack, type Operation, type ServerRecord } from '../../../packages/contracts';
@@ -139,7 +140,10 @@ export class SliceService {
       if (existing && existing.owner_id !== ownerId) ack = { operationId: op.operationId, status: 'invalid', code: 'NOT_FOUND' };
       else if ((existing?.version ?? 0) !== op.baseVersion || existing?.deleted) ack = { operationId: op.operationId, status: 'conflict', record: existing ? asRecord(existing) : undefined };
       else if (existing && existing.data.kind !== op.data.kind) ack = { operationId: op.operationId, status: 'invalid', code: 'TYPE_IMMUTABLE' };
+      else if (existing?.data.kind === 'plot' && op.data.kind === 'plot' && existing.data.farmId !== op.data.farmId) ack = {operationId: op.operationId, status: 'invalid', code: 'PARENT_IMMUTABLE'};
+      else if (op.data.kind !== 'task' && areaChangeError(existing?.data, op.data)) ack = {operationId: op.operationId, status: 'invalid', code: areaChangeError(existing?.data, op.data)!};
       else if (!(await this.validParent(tx, ownerId, op))) ack = { operationId: op.operationId, status: 'invalid', code: 'PARENT_NOT_FOUND' };
+      else if (!(await this.areaFits(tx, ownerId, op))) ack = {operationId: op.operationId, status: existing ? 'conflict' : 'invalid', code: 'PLOT_AREA_EXCEEDS_FARM', record: existing ? asRecord(existing) : undefined};
       else {
         const record: ServerRecord = { id: op.recordId, version: op.baseVersion + 1, data: op.data, deleted: false };
         await tx.query('INSERT INTO records(id,owner_id,version,data) VALUES ($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET version=EXCLUDED.version,data=EXCLUDED.data,updated_at=now()', [record.id, ownerId, record.version, record.data]);
@@ -150,6 +154,15 @@ export class SliceService {
       await tx.query('INSERT INTO operations(owner_id,operation_id,payload,acknowledgement) VALUES ($1,$2,$3,$4)', [ownerId, op.operationId, payload, ack]);
       return ack;
     });
+  }
+  private async areaFits(tx: Queryable, ownerId: string, op: Operation) {
+    if (op.data.kind === 'task') return true;
+    const farmId = op.data.kind === 'farm' ? op.recordId : op.data.farmId;
+    const farm = op.data.kind === 'farm' ? op.data : (await tx.query('SELECT data FROM records WHERE id=$1 AND owner_id=$2', [farmId, ownerId])).rows[0]?.data;
+    if (!farm || farm.areaM2 === null) return true;
+    const plots = (await tx.query("SELECT id,data FROM records WHERE owner_id=$1 AND NOT deleted AND data->>'kind'='plot' AND data->>'farmId'=$2", [ownerId, farmId])).rows;
+    const sum = plots.filter(p => p.id !== op.recordId).reduce((value, p) => value + (p.data.areaM2 ?? 0), 0) + (op.data.kind === 'plot' ? op.data.areaM2 ?? 0 : 0);
+    return sum <= farm.areaM2 + 0.000001;
   }
   private async validParent(tx: Queryable, ownerId: string, op: Operation) {
     if (op.data.kind === 'farm') return true;

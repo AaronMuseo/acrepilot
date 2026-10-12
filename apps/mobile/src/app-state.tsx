@@ -32,7 +32,7 @@ function useAppController() {
   const network = Network.useNetworkState();
   const text = (key: MessageKey) => t(language, key);
   const displayArea = (areaM2: number | null) => areaM2 === null ? text('unknown') : `${squareMetresToArea(areaM2, areaUnit).toLocaleString(language === 'sw' ? 'sw-KE' : 'en-KE', {maximumFractionDigits: 6})} ${text(areaUnit)}`;
-  const describe = (data?: RecordData) => !data ? text('unknown') : data.kind === 'task' ? `${text('fixtureTask')}: ${text(data.done ? 'yes' : 'no')}` : `${data.name} · ${displayArea(data.areaM2)}`;
+  const describe = (data?: RecordData) => !data ? text('unknown') : data.kind === 'task' ? `${text('fixtureTask')}: ${text(data.done ? 'yes' : 'no')}` : `${data.name ?? text('defaultPlot')} · ${displayArea(data.areaM2)}`;
   const redraw = () => refresh(v => v + 1);
   const activate = async (value: Session) => {
     // Finish an old-token request before replacing its engine or closing its database.
@@ -88,7 +88,7 @@ function useAppController() {
     setBusy(true); setMessage(null);
     try { await fn(); } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      const errors: Record<string, MessageKey> = {SQLCIPHER_BUILD_REQUIRED: 'encryptedBuild', INVALID_LOGIN: 'invalidLogin', LOGIN_COOLDOWN: 'loginCooldown', REAUTH_REQUIRED: 'passwordReauth', RESEND_COOLDOWN: 'codeCooldown', INVALID_OR_EXPIRED_CODE: 'invalidCode', REAUTH_SAME_ACCOUNT_REQUIRED: 'sameAccount', UNAUTHORIZED: 'expired'};
+      const errors: Record<string, MessageKey> = {PLOT_AREA_EXCEEDS_FARM: 'plotAreaExceedsFarm', SQLCIPHER_BUILD_REQUIRED: 'encryptedBuild', INVALID_LOGIN: 'invalidLogin', LOGIN_COOLDOWN: 'loginCooldown', REAUTH_REQUIRED: 'passwordReauth', RESEND_COOLDOWN: 'codeCooldown', INVALID_OR_EXPIRED_CODE: 'invalidCode', REAUTH_SAME_ACCOUNT_REQUIRED: 'sameAccount', UNAUTHORIZED: 'expired'};
       setMessage(errors[code] ?? 'error');
       if (code === 'REAUTH_REQUIRED' || code === 'UNAUTHORIZED') setReauth(true);
     } finally { setBusy(false); redraw(); }

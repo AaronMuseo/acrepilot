@@ -1,7 +1,17 @@
 import type { Language } from '../contracts';
 const en = {
+  requiredArea: 'Enter an area greater than zero.',
+  changePlotArea: 'Record / change plot area', knownPlotArea: 'Total of measured plots', plotAreaExceedsFarm: 'Measured plots cannot exceed the farm total. Correct plot areas first when reducing the farm. If another device changed the totals, use the server version in More, sync, then enter a revised area.',
+  plots: 'Plots', addPlot: 'Add plot', renamePlot: 'Edit plot name', plotName: 'Plot name', plotNameInvalid: 'Enter a plot name.',
+  plotScope: 'Record each plot’s own area, without overlap. Unknown plots are excluded from the measured total. Adding a plot does not increase farm area; subdivision is still to come.',
+  plotAreaUnknown: 'Plot area not recorded.',
+  changeArea: 'Change farm area', currentArea: 'Current area', newArea: 'New total area', effectiveDate: 'Effective date (YYYY-MM-DD)',
+  areaDateHelp: 'Use today or a past date, on or after the latest area change. Previous values stay in history.', changeReason: 'Reason for change', baseline: 'Previously recorded area', correction: 'Correction / first measurement', expansion: 'Expansion', reduction: 'Reduction',
+  areaHistory: 'Area history', dateUnknown: 'Date unknown', noAreaHistory: 'No area changes recorded yet.', areaDateInvalid: 'Enter a valid date, no later than today and no earlier than the last change.', areaReasonInvalid: 'Expansion must increase a known area; reduction must decrease it. Use correction for a first measurement.', areaUnchanged: 'Enter a different total area.',
+  areaConflictHelp: 'Keeping your area creates a new correction dated today after the server history. Both original versions remain in the resolution audit.',
+  previewShort: 'Test data only · not agricultural advice.', previewGoShort: 'Test data only · unencrypted Expo Go storage · not agricultural advice.', previewDetails: 'Preview details', hideDetails: 'Hide details',
   myFarms: 'My farms', addFarm: 'Add farm', manageFarm: 'Manage farm', renameFarm: 'Edit farm name', saveChanges: 'Save changes', cancel: 'Cancel', farmNameInvalid: 'Enter a farm name.',
-  landHistoryPending: 'Area changes, subdivisions and land history will be added in the next farm workflow.',
+  landHistoryPending: 'Plot subdivision, land sales and lease history are still to come.',
   identityRequired: 'Enter your email or Kenyan phone number.', identityInvalid: 'Enter a valid email or a Kenyan number such as +254712345678.',
   passwordRequired: 'Enter your password.', codeFormat: 'Enter the six-digit code.', authWorking: 'Please wait…',
   password: 'Password', newPassword: 'New password', passwordLogin: 'Sign in with password', codeAlternative: 'Or use a test code to register or sign in.',
@@ -43,8 +53,18 @@ const en = {
 };
 export type MessageKey = keyof typeof en;
 const sw: Record<MessageKey, string> = {
+  requiredArea: 'Weka ukubwa ulio zaidi ya sifuri.',
+  changePlotArea: 'Rekodi / badilisha ukubwa wa kitalu', knownPlotArea: 'Jumla ya vitalu vilivyopimwa', plotAreaExceedsFarm: 'Jumla ya vitalu vilivyopimwa haiwezi kuzidi ukubwa wa shamba. Sahihisha vitalu kabla ya kupunguza shamba. Kifaa kingine kikibadilisha jumla, tumia toleo la seva kwenye Zaidi, sawazisha, kisha weka ukubwa mpya.',
+  plots: 'Vitalu', addPlot: 'Ongeza kitalu', renamePlot: 'Badilisha jina la kitalu', plotName: 'Jina la kitalu', plotNameInvalid: 'Weka jina la kitalu.',
+  plotScope: 'Rekodi ukubwa wa kila kitalu bila kuhesabu eneo mara mbili. Vitalu visivyopimwa havijumuishwi kwenye jumla iliyopimwa. Kuongeza kitalu hakuongezi ukubwa wa shamba; ugawaji utakuja baadaye.',
+  plotAreaUnknown: 'Ukubwa wa kitalu haujarekodiwa.',
+  changeArea: 'Badilisha ukubwa wa shamba', currentArea: 'Ukubwa wa sasa', newArea: 'Jumla mpya ya eneo', effectiveDate: 'Tarehe ya kuanza (YYYY-MM-DD)',
+  areaDateHelp: 'Tumia leo au tarehe iliyopita, kuanzia mabadiliko ya mwisho ya eneo. Vipimo vya awali vinabaki katika historia.', changeReason: 'Sababu ya mabadiliko', baseline: 'Ukubwa uliorekodiwa awali', correction: 'Marekebisho / kipimo cha kwanza', expansion: 'Upanuzi', reduction: 'Upunguzaji',
+  areaHistory: 'Historia ya eneo', dateUnknown: 'Tarehe haijulikani', noAreaHistory: 'Hakuna mabadiliko ya eneo yaliyorekodiwa bado.', areaDateInvalid: 'Weka tarehe halali, isiyozidi leo wala kutangulia mabadiliko ya mwisho.', areaReasonInvalid: 'Upanuzi lazima uongeze eneo linalojulikana; upunguzaji ulipunguze. Tumia marekebisho kwa kipimo cha kwanza.', areaUnchanged: 'Weka jumla tofauti ya eneo.',
+  areaConflictHelp: 'Kuhifadhi eneo lako huongeza marekebisho ya leo baada ya historia ya seva. Matoleo yote mawili ya awali huhifadhiwa katika kumbukumbu ya suluhisho.',
+  previewShort: 'Data za majaribio pekee · si ushauri wa kilimo.', previewGoShort: 'Data za majaribio pekee · hifadhi ya Expo Go haijasimbwa · si ushauri wa kilimo.', previewDetails: 'Maelezo ya hakiki', hideDetails: 'Ficha maelezo',
   myFarms: 'Mashamba yangu', addFarm: 'Ongeza shamba', manageFarm: 'Simamia shamba', renameFarm: 'Badilisha jina la shamba', saveChanges: 'Hifadhi mabadiliko', cancel: 'Ghairi', farmNameInvalid: 'Weka jina la shamba.',
-  landHistoryPending: 'Mabadiliko ya ukubwa, ugawaji na historia ya ardhi yataongezwa katika hatua inayofuata.',
+  landHistoryPending: 'Ugawaji wa sehemu, mauzo ya ardhi na historia ya ukodishaji bado vitaongezwa.',
   identityRequired: 'Weka barua pepe au nambari yako ya simu ya Kenya.', identityInvalid: 'Weka barua pepe halali au nambari ya Kenya kama +254712345678.',
   passwordRequired: 'Weka nenosiri lako.', codeFormat: 'Weka msimbo wa tarakimu sita.', authWorking: 'Tafadhali subiri…',
   password: 'Nenosiri', newPassword: 'Nenosiri jipya', passwordLogin: 'Ingia kwa nenosiri', codeAlternative: 'Au tumia msimbo wa majaribio kujisajili au kuingia.',

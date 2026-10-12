@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "check": "pnpm typecheck && pnpm test",
-    "db:migrate": "tsx apps/api/src/migrate.ts"
+    "db:migrate": "tsx apps/api/src/migrate.ts",
+    "ui:preview": "node scripts/ui-preview/serve.cjs"
   },
   "dependencies": {
     "@nestjs/common": "12.1.1",
@@ -32,6 +33,7 @@
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "eas-cli": "24.8.0",
+    "esbuild": "0.28.2",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   }

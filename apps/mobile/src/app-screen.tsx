@@ -1,3 +1,4 @@
+import { controls } from './control-styles';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ const routes: Record<Section, Href> = {home: '/', farm: '/farm', crops: '/crops'
 const navIcons: Record<Section, string> = {home: '⌂', farm: '▦', crops: '♧', tools: '⚒', markets: '▥', more: '•••'};
 const navLabels: Record<Section, MessageKey> = {home: 'navHome', farm: 'navFarm', crops: 'navCrops', tools: 'navTools', markets: 'navMarkets', more: 'navMore'};
 export default function AppScreen({section}: {section: Section}) {
+  const [showPreviewDetails, setShowPreviewDetails] = useState(false);
   const [authErrors, setAuthErrors] = useState<AuthErrors>({});
   const [password, setPasswordInput] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -30,21 +32,24 @@ export default function AppScreen({section}: {section: Section}) {
   };
   const clearFieldError = (key: keyof AuthErrors) => setAuthErrors(current => ({...current, [key]: undefined}));
   const fieldError = (key: keyof AuthErrors) => authErrors[key] ? <Text accessibilityRole="alert" style={styles.fieldError}>{text(authErrors[key]!)}</Text> : null;
-  const button = (label: string, onPress: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={busy} onPress={onPress} style={[styles.button, secondary && styles.secondary, busy && styles.disabled]}><Text style={[styles.buttonText, secondary && styles.secondaryText]}>{label}</Text></Pressable>;
+  const button = (label: string, onPress: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={busy} onPress={onPress} style={({pressed}) => [styles.button, secondary && styles.secondary, busy && styles.disabled, pressed && controls.pressed]}><Text style={[styles.buttonText, secondary && styles.secondaryText]}>{label}</Text></Pressable>;
   const field = (key: MessageKey, value: string, onChangeText: (value: string) => void, numeric = false) => <View style={styles.field}><Text style={styles.label}>{text(key)}</Text><TextInput accessibilityLabel={text(key)} style={styles.input} editable={!busy} value={value} onChangeText={onChangeText} keyboardType={numeric ? 'decimal-pad' : 'default'} autoCapitalize="none" maxLength={key === 'farmName' ? 100 : 254} /></View>;
   const pending = repo?.pending() ?? []; const failed = pending.find(r => r.failure);
   const conflict = failed ? JSON.parse(failed.failure!) as Ack : null;
   const records = repo?.list().filter(r => !r.deleted) ?? [];
   const farm = repo?.selectedFarm();
   const task = records.find(r => r.data.kind === 'task' && r.data.farmId === farm?.id);
-  return <SafeAreaView style={styles.safe}><ScrollView style={styles.scroll} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+  return <SafeAreaView style={styles.safe}><ScrollView style={styles.scroll} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag">
     <Text style={styles.brand}>AcrePilot</Text><Text style={styles.subtitle}>{text('subtitle')}</Text>
     {(!repo || section === 'more') && <View style={styles.languages}>{(['en', 'sw'] as const).map(lang => <Pressable key={lang} accessibilityRole="button" accessibilityState={{selected: lang === language, disabled: busy}} disabled={busy} onPress={() => void action(async () => { await changeLanguage(lang); })} style={[styles.language, lang === language && styles.selected]}><Text style={styles.label}>{lang === 'en' ? 'English' : 'Kiswahili'}</Text></Pressable>)}</View>}
-    <Text style={styles.notice}>{text('fixture')}</Text>
-    {isExpoGo && <Text style={styles.notice}>{text('expoGoFixture')}</Text>}
-    {message && <Text accessibilityRole="alert" style={styles.notice}>{text(message)}</Text>}
+    <View style={styles.preview}>
+      <Text style={styles.previewText}>{text(isExpoGo ? 'previewGoShort' : 'previewShort')}</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded: showPreviewDetails}} onPress={() => setShowPreviewDetails(value => !value)} style={styles.previewToggle}><Text style={styles.label}>{text(showPreviewDetails ? 'hideDetails' : 'previewDetails')}</Text></Pressable>
+      {showPreviewDetails && <><Text style={styles.notice}>{text('fixture')}</Text>{isExpoGo && <Text style={styles.notice}>{text('expoGoFixture')}</Text>}</>}
+    </View>
+    {message && !(reauth && section !== 'more') && <Text accessibilityRole="alert" style={styles.notice}>{text(message)}</Text>}
     {loading ? <Text>{text('loading')}</Text> : <>
-      {(!session || reauth) && <View style={styles.card}>
+      {(!session || (reauth && section === 'more')) && <View style={styles.card}>
         <Text style={styles.body}>{text('onlineRequired')}</Text>
         {field('identity', identity, value => { setIdentity(value); clearFieldError('identity'); setChallenge(null); setCode(''); clearFieldError('code'); })}
         {fieldError('identity')}
@@ -89,18 +94,21 @@ export default function AppScreen({section}: {section: Section}) {
           {areaUnits.map(unit => <Pressable key={unit} accessibilityRole="radio" accessibilityState={{checked: unit === areaUnit, disabled: busy}} disabled={busy} onPress={() => void action(() => changeAreaUnit(unit))} style={[styles.language, unit === areaUnit && styles.selected]}><Text style={styles.label}>{text(unit)}{unit === areaUnit ? ' ✓' : ''}</Text></Pressable>)}
         </View>
         {conflict && <View style={styles.card}><Text style={styles.heading}>{text('attention')}</Text><Text style={styles.body}>{text(conflict.status === 'conflict' && !conflict.record?.deleted ? 'conflict' : 'syncRejected')}</Text>
+          {conflict.code === 'PLOT_AREA_EXCEEDS_FARM' && <Text style={styles.body}>{text('plotAreaExceedsFarm')}</Text>}
+          {conflict.record && conflict.record.data.kind !== 'task' && <Text style={styles.body}>{text('areaConflictHelp')}</Text>}
           <Text selectable style={styles.body}>{text('mine')}: {describe(repo.get(failed!.record_id)?.data)}</Text><Text selectable style={styles.body}>{text('server')}: {describe(conflict.record?.data)}</Text>
           {conflict.status === 'conflict' && conflict.record && !conflict.record.deleted && <>{button(text('keepMine'), () => void action(() => { repo.resolve(failed!.record_id, 'mine'); void sync(); }))}{button(text('useServer'), () => void action(() => { repo.resolve(failed!.record_id, 'server'); void sync(); }), true)}</>}
         </View>}
         <View style={styles.card}>
           {pending.length > 0 && <Text accessibilityLiveRegion="polite" style={styles.label}>{text(failed ? 'attention' : 'pending')}</Text>}
-          <Pressable accessibilityRole="button" accessibilityState={{disabled: busy || syncing, busy: syncing}} disabled={busy || syncing} onPress={() => void sync()} style={[styles.button, styles.secondary, (busy || syncing) && styles.disabled]}><Text style={[styles.buttonText, styles.secondaryText]}>{text(syncing ? 'syncing' : 'retry')}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{disabled: busy || syncing, busy: syncing}} disabled={busy || syncing} onPress={() => void sync()} style={({pressed}) => [styles.button, styles.secondary, (busy || syncing) && styles.disabled, pressed && controls.pressed]}><Text style={[styles.buttonText, styles.secondaryText]}>{text(syncing ? 'syncing' : 'retry')}</Text></Pressable>
           {syncFeedback && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.body}>{text(syncFeedback)}</Text>}
           <Text style={styles.body}>{text('lastSync')}: {repo.meta('lastSync') ? new Date(repo.meta('lastSync')!).toLocaleString(language === 'sw' ? 'sw-KE' : 'en-KE', {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'}) : text('never')}</Text>
         </View><Text style={styles.body}>{text('noBackup')}</Text>
         <View style={styles.card}><Text style={styles.heading}>{text('accountSecurity')}</Text>
           <Text style={styles.body}>{text('passwordHelp')}</Text>
           {message && <Text accessibilityRole="alert" style={styles.notice}>{text(message)}</Text>}
+          <Text style={styles.label}>{text('newPassword')}</Text>
           <TextInput accessibilityLabel={text('newPassword')} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} value={newPassword} onChangeText={setNewPassword} maxLength={128} style={styles.input} />
           {button(text('savePassword'), () => void action(async () => {
             if (newPassword.length < 15) { setMessage('passwordLength'); return; }
@@ -136,13 +144,14 @@ const styles = StyleSheet.create({
   navIcon: {fontSize: 24, lineHeight: 28, color: '#6b786e'},
   navLabel: {fontSize: 11, fontWeight: '600', textAlign: 'center', color: '#6b786e'},
   navActive: {color: '#20563a', fontWeight: '800'},
-  languages: {flexDirection: 'row', gap: 12, flexWrap: 'wrap'}, language: {minHeight: 48, justifyContent: 'center', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#789083'}, selected: {backgroundColor: '#d8e8d9'},
+  languages: {flexDirection: 'row', gap: 12, flexWrap: 'wrap'}, language: controls.choice, selected: controls.selected,
+  preview: {gap: 6}, previewText: {fontSize: 14, lineHeight: 20, color: '#553c10'}, previewToggle: {minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start'},
   notice: {backgroundColor: '#fff0cb', color: '#553c10', padding: 14, borderRadius: 10, fontSize: 15, lineHeight: 23},
   card: {padding: 20, borderRadius: 20, backgroundColor: '#ffffff', gap: 14, borderWidth: 1, borderColor: '#dbe2d9'},
   heading: {fontSize: 23, fontWeight: '700', color: '#183e2d'}, body: {fontSize: 17, lineHeight: 26, color: '#38473d'},
   label: {fontSize: 16, fontWeight: '600', color: '#183e2d'}, field: {gap: 8},
   fieldError: {color: '#9b2525', fontSize: 15, lineHeight: 22},
-  input: {borderWidth: 1, borderColor: '#75877c', borderRadius: 10, padding: 14, minHeight: 52, fontSize: 18, color: '#172d20'},
-  button: {minHeight: 50, padding: 14, backgroundColor: '#20563a', borderRadius: 12, alignItems: 'center', justifyContent: 'center'}, buttonText: {color: '#ffffff', fontSize: 17, fontWeight: '600'},
-  secondary: {backgroundColor: '#e3eadf'}, secondaryText: {color: '#183e2d'}, disabled: {opacity: 0.5}, status: {gap: 6},
+  input: controls.input,
+  button: controls.button, buttonText: controls.buttonText,
+  secondary: controls.secondary, secondaryText: controls.secondaryText, disabled: controls.disabled, status: {gap: 6},
 });

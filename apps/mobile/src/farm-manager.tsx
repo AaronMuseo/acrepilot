@@ -1,3 +1,6 @@
+import { controls } from './control-styles';
+import { PlotManager } from './plot-manager';
+import { AreaEditor } from './area-editor';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { areaToSquareMetres } from '../../../packages/domain';
@@ -7,14 +10,15 @@ export function FarmPicker() {
   const selected = repo?.selectedFarm(); const farms = repo?.farms() ?? [];
   return <View style={styles.card}><Text style={styles.heading}>{text('myFarms')}</Text>
     {farms.map(farm => farm.data.kind === 'farm' && <Pressable key={farm.id} disabled={busy} accessibilityRole="radio" accessibilityLabel={farm.data.name} accessibilityState={{checked: farm.id === selected?.id, disabled: busy}}
-      onPress={() => void action(() => selectFarm(farm.id))} style={[styles.choice, farm.id === selected?.id && styles.selected]}>
-      <Text style={styles.label}>{farm.data.name}{farm.id === selected?.id ? ' ✓' : ''}</Text>
+      onPress={() => void action(() => selectFarm(farm.id))} style={({pressed}) => [styles.choice, farm.id === selected?.id && styles.selected, pressed && controls.pressed]}>
+      <Text style={styles.label}>{farm.id === selected?.id ? '●  ' : '○  '}{farm.data.name}</Text>
     </Pressable>)}
     {!farms.length && <Text style={styles.body}>{text('noFarm')}</Text>}
   </View>;
 }
 export function FarmManager() {
   const {repo, busy, text, action, displayArea, farmName, setFarmName, area, draftUnit, changeDraftArea, createFarm, sync, setMessage} = useApp();
+  const [areaEditing, setAreaEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -22,17 +26,18 @@ export function FarmManager() {
   const farm = repo?.selectedFarm();
   if (!repo) return null;
   const field = (label: string, value: string, onChangeText: (value: string) => void, numeric = false) => <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput style={styles.input} accessibilityLabel={label} editable={!busy} value={value} onChangeText={onChangeText} maxLength={numeric ? 30 : 100} keyboardType={numeric ? 'decimal-pad' : 'default'} /></View>;
-  const button = (label: string, press: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{disabled: busy}} onPress={press} style={[styles.button, secondary && styles.secondary, busy && {opacity: 0.5}]}><Text style={[styles.buttonText, secondary && styles.label]}>{label}</Text></Pressable>;
+  const button = (label: string, press: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{disabled: busy}} onPress={press} style={({pressed}) => [styles.button, secondary && styles.secondary, busy && controls.disabled, pressed && controls.pressed]}><Text style={[styles.buttonText, secondary && controls.secondaryText]}>{label}</Text></Pressable>;
   return <>
-    <FarmPicker />
-    {farm?.data.kind === 'farm' && <View style={styles.card}><Text style={styles.heading}>{farm.data.name}</Text>
-      <Text style={styles.label}>{text('defaultPlot')}</Text><Text style={styles.body}>{displayArea(farm.data.areaM2)}</Text>
-      <Text style={styles.body}>{text('soil')}: {text('unknown')} · {text('water')}: {text('unknown')}</Text>
-      <Text style={styles.body}>{text('locationMissing')}</Text>
-      <Text style={styles.label}>{text(repo.pending().some(row => row.record_id === farm.id && row.failure) ? 'attention' : repo.pending().some(row => row.record_id === farm.id) ? 'pending' : 'synced')}</Text>
-      {button(text('renameFarm'), () => { setAdding(false); setEditing(farm.id); if (farm.data.kind === 'farm') setName(repo.meta('draftName:' + farm.id) || farm.data.name); setError(null); }, true)}
-      <Text style={styles.body}>{text('landHistoryPending')}</Text>
-    </View>}
+    <View style={styles.card}>
+      {button(text('addFarm'), () => {setAdding(true); setEditing(null); setAreaEditing(null); setError(null);})}
+      {farm?.data.kind === 'farm' && button(text('renameFarm'), () => {
+        setAdding(false); setEditing(farm.id); setAreaEditing(null);
+        if (farm.data.kind === 'farm') setName(repo.meta('draftName:' + farm.id) || farm.data.name);
+        setError(null);
+      }, true)}
+      {farm && button(text('changeArea'), () => {setAreaEditing(farm.id); setAdding(false); setEditing(null);}, true)}
+    </View>
+    {areaEditing === farm?.id && <AreaEditor key={farm.id} farmId={farm.id} onClose={() => setAreaEditing(null)} />}
     {editing === farm?.id && <View style={styles.card}>
       {field(text('farmName'), name, value => {repo.setMeta('draftName:' + editing, value); setName(value); setError(null);})}
       {error && <Text accessibilityRole="alert" style={styles.error}>{text(error)}</Text>}
@@ -54,15 +59,31 @@ export function FarmManager() {
         createFarm(areaM2); setAdding(false); setError(null);
       }))}
       {farm && button(text('cancel'), () => {setAdding(false); setError(null);}, true)}
-    </View> : button(text('addFarm'), () => {setAdding(true); setEditing(null); setError(null);})}
+    </View> : null}
+    {!adding && <FarmPicker />}
+    {!adding && farm && <PlotManager key={farm.id} farmId={farm.id} />}
+    {!adding && editing !== farm?.id && farm?.data.kind === 'farm' && <View style={styles.card}><Text style={styles.heading}>{farm.data.name}</Text>
+      <Text style={styles.label}>{text('currentArea')}</Text><Text style={styles.body}>{displayArea(farm.data.areaM2)}</Text>
+      <Text style={styles.body}>{text('soil')}: {text('unknown')} · {text('water')}: {text('unknown')}</Text>
+      <Text style={styles.body}>{text('locationMissing')}</Text>
+      <Text style={styles.label}>{text(repo.pending().some(row => row.record_id === farm.id && row.failure) ? 'attention' : repo.pending().some(row => row.record_id === farm.id) ? 'pending' : 'synced')}</Text>
+
+      <Text style={styles.heading}>{text('areaHistory')}</Text>
+      {farm.data.areaHistory ? [...farm.data.areaHistory].reverse().map(revision => <View key={revision.id} style={styles.field}>
+        <Text style={styles.label}>{revision.effectiveDate ?? text('dateUnknown')} · {text(revision.reason)}</Text>
+        <Text style={styles.body}>{displayArea(revision.areaM2)}</Text>
+      </View>) : <Text style={styles.body}>{text('noAreaHistory')}</Text>}
+      <Text style={styles.body}>{text('landHistoryPending')}</Text>
+    </View>}
+
   </>;
 }
 const styles = StyleSheet.create({
   card: {padding: 20, borderRadius: 20, backgroundColor: '#fff', gap: 14, borderWidth: 1, borderColor: '#dbe2d9'},
   heading: {fontSize: 23, fontWeight: '700', color: '#183e2d'}, label: {fontSize: 16, fontWeight: '600', color: '#183e2d'},
   body: {fontSize: 17, lineHeight: 26, color: '#38473d'}, field: {gap: 8},
-  input: {borderWidth: 1, borderColor: '#75877c', borderRadius: 10, padding: 14, minHeight: 52, fontSize: 18, color: '#172d20'},
-  choice: {padding: 14, minHeight: 48, borderWidth: 1, borderColor: '#789083', borderRadius: 12}, selected: {backgroundColor: '#d8e8d9'},
-  button: {minHeight: 50, padding: 14, backgroundColor: '#20563a', borderRadius: 12, alignItems: 'center'}, buttonText: {color: '#fff', fontSize: 17, fontWeight: '600'}, secondary: {backgroundColor: '#e3eadf'},
+  input: controls.input,
+  choice: controls.choice, selected: controls.selected,
+  button: controls.button, buttonText: controls.buttonText, secondary: controls.secondary,
   error: {fontSize: 15, lineHeight: 22, color: '#9b2525'},
 });

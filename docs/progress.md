@@ -137,3 +137,67 @@ Area editing is reserved for the revision/history workflow. No farm data is dele
 
 - [ ] Aaron reports some app items are missing/not visible on his iPhone; affected screens and cause not yet identified. Remind him when resuming, reproduce and fix before more feature work. See resume.md.
 - Session stopped at Aaron's request; he will commit/push himself. Sign-in follow-up remains deferred.
+
+## Farm visibility follow-up — 2026-10-12
+
+- [x] Aaron identified missing Add farm/Edit farm name controls. Moved both actions above farm lists/details and positioned forms immediately after actions; compact preview notices retain fixture/unencrypted warnings and expandable details.
+- [x] Expired-session reauthentication is shown in More while cached Farm screens remain accessible; keyboard inset handling added. Typecheck passed.
+- [ ] Phone confirmation: Farm actions visible and usable after full reload. Historical undefined-function runtime error observed in Metro; no stack/root cause available, so this is not claimed resolved merely from source checks.
+
+- [x] Clean-cache Expo iOS preview rebuilt and served successfully (manifest/bundle HTTP 200). Awaiting Aaron's Farm visibility confirmation.
+
+## Farm-area revision slice — 2026-10-12
+
+- [x] Change farm area from the Farm actions; draft retains unit, amount, effective date and reason across restart.
+- [x] Dated correction/expansion/reduction revisions preserve a baseline (original date unknown), stored in square metres and displayed in the selected unit.
+- [x] Offline outbox persistence, immutable accepted history, retry deduplication, date/reason validation and explicit conflict handling.
+- [x] Keeping a conflicting local area appends today's correction to server history; both original versions remain in the resolution audit.
+- [x] Typecheck, all 28 tests, OpenAPI generation and Android/iOS exports passed.
+- [ ] Phone: confirm Add/Edit/Change area buttons visible; save an area revision offline, reload, reconnect and confirm sync/history.
+- [ ] Full P2 plot/resource/tenure/split/merge/sale work remains open. Existing requirements and deferred sign-in work are preserved.
+
+Prototype history limit: 100 entries including baseline. No old entries are discarded. No credentials or external agronomy data are required for this local fixture slice.
+
+## Plot naming and selection slice — 2026-10-12
+
+Aaron replied “ok perfect” after the farm-area handoff and authorized this next slice. This records his acceptance; it does not imply every detailed device test was run.
+
+- [x] Explicit plot records with immutable farm links and server ownership checks.
+- [x] New farms atomically create a default plot; legacy farms keep their reserved default ID and materialize it when named, without rewriting existing farm/task records.
+- [x] Add/name/select plots offline, persist per-farm selection and name drafts; retain conflict versions for explicit resolution.
+- [x] English/Kiswahili plot controls and unknown area/soil/water states. Farm totals remain independent; no copied or invented plot measurements.
+- [ ] Phone: add and rename a plot offline, reopen, switch farms/plots and reconnect to sync.
+- [ ] Plot areas/revisions/subdivision, lineage, tenure, resources and map integration remain open. Sign-in follow-up remains deferred.
+
+No new credentials or verified external data are needed for this slice. Map and agronomy integrations remain unconfigured.
+
+- [x] Plot slice validation: all 31 tests and typecheck pass, OpenAPI regenerated, Android/iOS exports pass. Phone plot check pending.
+
+## Control clarity — 2026-10-12
+
+- [x] Replaced ambiguous outlined plot actions with filled rounded buttons; secondary actions use a tinted rounded style.
+- [x] Shared text fields use a neutral fill, small corner radius and stronger bottom border; selection rows use radio markers on Farm/Plots/area reasons and a selected side indicator.
+- [x] Shared pressed/disabled feedback for actions; added visible new-password label. Typecheck passed.
+- [ ] Aaron to confirm distinction and readability on iPhone.
+
+## Plot areas and dated revisions — 2026-10-12
+
+- [x] Aaron accepted the clearer controls (“ok nice”); retain this visual distinction.
+- [x] Plot area editor uses the selected unit, persisted draft, effective date and reason; baseline and previous values remain in history.
+- [x] Local and serialized server checks keep measured plot totals within a known farm area. Unknown farm/plot areas are not invented; totals summarize only measured plots.
+- [x] Concurrent over-allocation retains the rejected local version for explicit conflict recovery. Farm reduction also checks recorded plot totals.
+- [x] Legacy default plots materialize atomically before the first measurement. Plot conflicts preserve accepted history when keeping a local area.
+- [x] Typecheck and all 34 tests pass; OpenAPI regenerated.
+- [ ] Phone: record plot area offline, reopen, sync; test a total exceeding farm area and inspect history.
+- [ ] Subdivision/split/merge and lineage, sale/inactivation, tenure, resources/conditions and maps remain open. No surveyed-boundary or overlap verification is claimed.
+
+No new provider credentials or verified external data are required. All accepted requirements and deferred sign-in work remain preserved.
+- [x] Plot-area Android/iOS exports and local preview/API checks passed.
+
+## Save/label report and rendered UI checks — 2026-10-12
+
+- Aaron reports plot-size text missing and Save not closing the editor. Fresh desktop component preview displays the label and saves 5,000 m², closes, and reopens with the saved value. Native issue remains pending confirmation after a clean Expo reload; stale runtime is a hypothesis, not a proven root cause.
+- [x] Added reusable pnpm ui:preview (real AreaEditor/styles/translations/domain validation, mocked app state and storage; no production account/data). Inspected at 390px container width and checked required-field feedback and valid-save interaction.
+- [x] Corrected required-area validation wording; typecheck passed.
+- [x] Recorded mandatory rendered UI checks in AGENTS.md.
+- [ ] Aaron to retry in freshly reopened Expo Go and confirm label/save.

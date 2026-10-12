@@ -1,3 +1,4 @@
+import { todayInKenya } from '../packages/domain/land';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,112 @@ import { messages } from '../packages/translations';
 import { readPreferences, readFarmDraft, saveAreaUnit, saveDraftArea } from '../apps/mobile/src/preferences';
 import { storagePolicy } from '../apps/mobile/src/storage-policy';
 import type { Operation } from '../packages/contracts';
+
+test('plot measurement history persists offline and enforces local farm capacity', async () => {
+  const user = await account(); const file = join(work, 'plot-areas.db'); let phone = local(user.ownerId, file);
+  const farm = phone.repo.createFarm('Measured', 10000); const first = phone.repo.selectedPlot(farm)!.id;
+  const second = phone.repo.createPlot(farm, 'Second');
+  phone.repo.revisePlotArea(farm, first, 6000, todayInKenya(), 'correction');
+  assert.throws(() => phone.repo.revisePlotArea(farm, second, 5000, todayInKenya(), 'correction'), /PLOT_AREA_EXCEEDS_FARM/);
+  phone.repo.revisePlotArea(farm, second, 4000, todayInKenya(), 'correction');
+  assert.throws(() => phone.repo.reviseFarmArea(farm, 9000, todayInKenya(), 'reduction'), /PLOT_AREA_EXCEEDS_FARM/);
+  phone.close(); phone = local(user.ownerId, file);
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.equal(phone.repo.pending().length, 0);
+  const data = phone.repo.get(first)!.data; assert.ok(data.kind === 'plot');
+  assert.deepEqual(data.areaHistory!.map(r => r.areaM2), [null, 6000]);
+  phone.repo.revisePlotArea(farm, first, 5000, todayInKenya(), 'reduction');
+  phone.repo.reviseFarmArea(farm, 9000, todayInKenya(), 'reduction');
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.equal(phone.repo.pending().length, 0); phone.close();
+});
+
+test('concurrent plot allocations cannot overfill a farm and can recover using server values', async () => {
+  const user = await account(); const a = local(user.ownerId); const b = local(user.ownerId);
+  const farm = a.repo.createFarm('Shared', 10000); const first = a.repo.selectedPlot(farm)!.id;
+  const second = a.repo.createPlot(farm, 'Second');
+  await new SyncEngine(a.repo, transport(user.token)).run(); await new SyncEngine(b.repo, transport(user.token)).run();
+  a.repo.revisePlotArea(farm, first, 7000, todayInKenya(), 'correction');
+  b.repo.revisePlotArea(farm, second, 6000, todayInKenya(), 'correction');
+  await Promise.all([new SyncEngine(a.repo, transport(user.token)).run(), new SyncEngine(b.repo, transport(user.token)).run()]);
+  const loser = a.repo.pending().length ? a : b; const id = loser === a ? first : second;
+  const failure = JSON.parse(loser.repo.pending()[0].failure!);
+  assert.equal(failure.code, 'PLOT_AREA_EXCEEDS_FARM'); assert.equal(failure.status, 'conflict');
+  loser.repo.resolve(id, 'server'); await new SyncEngine(loser.repo, transport(user.token)).run();
+  loser.repo.revisePlotArea(farm, id, 3000, todayInKenya(), 'correction');
+  await new SyncEngine(loser.repo, transport(user.token)).run(); assert.equal(loser.repo.pending().length, 0);
+  const row = loser.repo.get(id)!; assert.ok(row.data.kind === 'plot');
+  const forged = {...row.data, areaM2: 1000, areaHistory: undefined};
+  const result = await request('sync/push', {operations:[{operationId:randomUUID(), deviceId:randomUUID(), recordId:id, baseVersion:row.version, data:forged}]}, user.token);
+  assert.equal(result.body.acknowledgements[0].code, 'AREA_HISTORY_REQUIRED');
+  a.close(); b.close();
+});
+
+test('legacy plot measurements materialize atomically and unknown farm totals remain unknown', async () => {
+  const user = await account(); const phone = local(user.ownerId); const farm = randomUUID(); const plotId = randomUUID();
+  phone.repo.save(farm, {kind:'farm', name:'Legacy', plotId, areaM2:null, location:null, soil:'unknown', water:'unknown'});
+  phone.repo.revisePlotArea(farm, plotId, 5000, todayInKenya(), 'correction');
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.equal(phone.repo.pending().length,0); assert.equal((phone.repo.get(farm)!.data as any).areaM2,null);
+  assert.throws(() => phone.repo.reviseFarmArea(farm,4000,todayInKenya(),'correction'), /PLOT_AREA_EXCEEDS_FARM/);
+  phone.close();
+});
+
+test('plots retain per-farm selection, names and links across offline restart and retry', async () => {
+  const user = await account(); const file = join(work, 'plots.db'); let phone = local(user.ownerId, file);
+  const farm = phone.repo.createFarm('Main', 10000); const other = phone.repo.createFarm('Other', null);
+  const original = phone.repo.selectedPlot(farm)!;
+  const added = phone.repo.createPlot(farm, 'North'); phone.repo.renamePlot(farm, added, 'North field');
+  const otherPlot = phone.repo.createPlot(other, 'Garden');
+  assert.equal(phone.repo.selectedPlot(farm)!.id, added);
+  assert.equal(phone.repo.selectedPlot(other)!.id, otherPlot);
+  assert.throws(() => phone.repo.selectPlot(other, added), /PLOT_NOT_FOUND/);
+  assert.throws(() => phone.repo.renamePlot(other, added, 'Wrong farm'), /PLOT_NOT_FOUND/);
+  assert.throws(() => phone.repo.createPlot(farm, '  '));
+  phone.close(); phone = local(user.ownerId, file);
+  assert.equal(phone.repo.selectedPlot(farm)!.id, added);
+  const batch = phone.repo.batch(); await request('sync/push', {operations: batch}, user.token); // Lost response.
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.equal(phone.repo.pending().length, 0); assert.equal(phone.repo.plots(farm).length, 2);
+  assert.equal(phone.repo.get(added)!.data.kind, 'plot');
+  assert.equal((phone.repo.get(added)!.data as any).name, 'North field');
+  assert.equal((phone.repo.get(farm)!.data as any).areaM2, 10000);
+  assert.equal((phone.repo.get(original.id)!.data as any).areaM2, null);
+  phone.repo.selectPlot(farm, original.id); phone.close();
+});
+
+test('plot parent ownership, kind and immutability are enforced by the server', async () => {
+  const user = await account(); const stranger = await account(); const phone = local(user.ownerId);
+  const farm = phone.repo.createFarm('Owned', null); const other = phone.repo.createFarm('Other', null);
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  const plot = phone.repo.selectedPlot(farm)!; assert.ok(plot.data.kind === 'plot');
+  const operation = (farmId: string, recordId: string = randomUUID(), baseVersion = 0): Operation => ({
+    operationId: randomUUID(), deviceId: randomUUID(), recordId, baseVersion,
+    data: {kind: 'plot', farmId, name: 'Plot', areaM2: null, soil: 'unknown', water: 'unknown'},
+  });
+  const push = async (op: Operation, token = user.token) => (await request('sync/push', {operations:[op]}, token)).body.acknowledgements[0];
+  assert.equal((await push(operation(farm), stranger.token)).code, 'PARENT_NOT_FOUND');
+  assert.equal((await push(operation(plot.id))).code, 'PARENT_NOT_FOUND');
+  assert.equal((await push(operation(randomUUID()))).code, 'PARENT_NOT_FOUND');
+  assert.equal((await push(operation(other, plot.id, plot.version))).code, 'PARENT_IMMUTABLE');
+  phone.close();
+});
+
+test('legacy default plot keeps its reserved ID and concurrent names require explicit resolution', async () => {
+  const user = await account(); const a = local(user.ownerId); const b = local(user.ownerId);
+  const farm = randomUUID(); const plotId = randomUUID();
+  a.repo.save(farm, {kind: 'farm', name: 'Legacy', plotId, areaM2: 10000, location: null, soil: 'unknown', water: 'unknown'});
+  await new SyncEngine(a.repo, transport(user.token)).run(); await new SyncEngine(b.repo, transport(user.token)).run();
+  assert.equal(a.repo.selectedPlot(farm)!.id, plotId); assert.equal(a.repo.pending().length, 0);
+  a.repo.renamePlot(farm, plotId, 'First name'); b.repo.renamePlot(farm, plotId, 'Second name');
+  await new SyncEngine(a.repo, transport(user.token)).run(); await new SyncEngine(b.repo, transport(user.token)).run();
+  assert.ok(b.repo.pending()[0].failure); b.repo.resolve(plotId, 'mine');
+  await new SyncEngine(b.repo, transport(user.token)).run();
+  assert.equal(b.repo.pending().length, 0); assert.equal(b.repo.plots(farm).length, 1);
+  assert.equal((b.repo.get(plotId)!.data as any).name, 'Second name');
+  assert.equal(b.repo.db.getAllSync('SELECT * FROM resolutions').length, 1);
+  a.close(); b.close();
+});
 
 let pg: PGlite; let db: Database; let app: Awaited<ReturnType<typeof createApp>>; let url: string;
 const work = mkdtempSync(join(tmpdir(), 'acrepilot-test-'));
@@ -307,4 +414,60 @@ test('multiple farms retain selected farm and pair tasks after offline restart a
   assert.throws(() => phone.repo.selectFarm(randomUUID()), /FARM_NOT_FOUND/);
   assert.throws(() => phone.repo.renameFarm(task.id, 'Not a farm'), /FARM_NOT_FOUND/);
   phone.close();
+});
+
+test('dated area changes survive restart and lost acknowledgement without duplicate history', async () => {
+  const user = await account(); const file = join(work, 'area-history.db');
+  let phone = local(user.ownerId, file); const farmId = phone.repo.createFarm('Area farm', 10000);
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  phone.repo.reviseFarmArea(farmId, 20000, todayInKenya(), 'expansion');
+  phone.close(); phone = local(user.ownerId, file);
+  const operation = phone.repo.batch()[0];
+  const accepted = await request('sync/push', {operations:[operation]}, user.token);
+  assert.equal(accepted.body.acknowledgements[0].status, 'accepted'); // Response lost before local acknowledgement.
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  let data = phone.repo.get(farmId)!.data; assert.ok(data.kind === 'farm');
+  assert.equal(data.areaM2,20000); assert.equal(data.areaHistory!.length,2); assert.equal(data.areaHistory![0].areaM2,10000);
+  assert.equal(data.areaHistory![0].effectiveDate,null);
+  phone.repo.reviseFarmArea(farmId, 15000, todayInKenya(), 'reduction');
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  data = phone.repo.get(farmId)!.data; assert.ok(data.kind === 'farm'); assert.equal(data.areaHistory!.length,3);
+  assert.equal(phone.repo.pending().length,0);
+  assert.throws(() => phone.repo.reviseFarmArea(farmId, 16000, '2999-01-01','correction'), /AREA_DATE_INVALID/);
+  assert.throws(() => phone.repo.reviseFarmArea(farmId, 16000, '2000-01-01','correction'), /AREA_DATE_INVALID/);
+  assert.throws(() => phone.repo.reviseFarmArea(farmId, 16000, '2026-02-30','correction'), /AREA_DATE_INVALID/);
+  assert.throws(() => phone.repo.reviseFarmArea(farmId, 10000, todayInKenya(),'expansion'), /AREA_REASON_INVALID/);
+  assert.equal(phone.repo.pending().length,0); phone.close();
+});
+
+test('server rejects area changes without history and protects accepted history from rewriting', async () => {
+  const user = await account(); const phone = local(user.ownerId); const id = phone.repo.createFarm('Protected', null);
+  await new SyncEngine(phone.repo, transport(user.token)).run();
+  assert.throws(() => phone.repo.reviseFarmArea(id, 20000, todayInKenya(), 'expansion'), /AREA_REASON_INVALID/);
+  phone.repo.reviseFarmArea(id, 10000, todayInKenya(), 'correction'); await new SyncEngine(phone.repo, transport(user.token)).run();
+  const record = phone.repo.get(id)!; assert.ok(record.data.kind === 'farm');
+  const forged = {...record.data, areaM2:20000, areaHistory:undefined};
+  const operation = {operationId:randomUUID(), deviceId:randomUUID(), recordId:id, baseVersion:record.version, data:forged};
+  let result = await request('sync/push', {operations:[operation]}, user.token);
+  assert.equal(result.body.acknowledgements[0].status,'invalid');
+  result = await request('sync/push', {operations:[{...operation, operationId:randomUUID(), data:{...record.data, areaHistory:record.data.areaHistory!.map((r,i) => i === 0 ? {...r, areaM2:999} : r)}}]}, user.token);
+  assert.equal(result.body.acknowledgements[0].status,'invalid');
+  const remote = await request('sync/pull', undefined, user.token);
+  assert.equal(remote.body.records.filter((r:any)=>r.id===id).at(-1).data.areaM2,10000); phone.close();
+});
+
+test('keeping an area conflict appends a correction after server history and retains both versions', async () => {
+  const user = await account(); const first = local(user.ownerId); const second = local(user.ownerId);
+  const id = first.repo.createFarm('Shared area',10000);
+  await new SyncEngine(first.repo,transport(user.token)).run(); await new SyncEngine(second.repo,transport(user.token)).run();
+  first.repo.reviseFarmArea(id,20000,todayInKenya(),'expansion');
+  second.repo.reviseFarmArea(id,5000,todayInKenya(),'reduction');
+  await new SyncEngine(first.repo,transport(user.token)).run(); await new SyncEngine(second.repo,transport(user.token)).run();
+  assert.ok(second.repo.pending()[0].failure);
+  second.repo.resolve(id,'mine'); await new SyncEngine(second.repo,transport(user.token)).run();
+  const result = second.repo.get(id)!.data; assert.ok(result.kind === 'farm');
+  assert.equal(result.areaM2,5000); assert.deepEqual(result.areaHistory!.map(r=>r.areaM2),[10000,20000,5000]);
+  assert.equal(result.areaHistory!.at(-1)!.reason,'correction');
+  assert.equal(second.repo.db.getAllSync('SELECT * FROM resolutions').length,1);
+  assert.equal(second.repo.pending().length,0); first.close(); second.close();
 });

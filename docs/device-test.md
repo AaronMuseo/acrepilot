@@ -71,3 +71,30 @@ Phone confirmation for this slice is pending; automated SQLite persistence tests
 3. In Farm choose Edit farm name. Disconnect, save a name change, then reconnect and Retry sync in More. The new name should remain.
 4. Reload online and confirm both farms and the selected farm survive. Area values should retain the same physical size across unit changes.
 5. Start an Add farm draft, navigate away/back, choose Add farm again and confirm the draft is retained.
+
+## Farm-area revision phone check (pending)
+
+1. Fully reload the project in Expo Go. Open Farm and confirm Add farm, Edit farm name and Change farm area are visible.
+2. Select a fake farm and choose Change farm area. Enter a different positive total area, today's date (YYYY-MM-DD) and Correction. Save with Wi-Fi off.
+3. Confirm the new total and history show the original baseline and the dated change. Reload offline and confirm both remain.
+4. Reconnect and retry sync; confirm the app reports synced and does not duplicate history.
+5. Try a future date and an Expansion with a smaller total; confirm clear errors. Change language/units and confirm labels/converted history values.
+
+This does not replace native encryption/performance tests or the deferred authentication phone checks.
+
+## Plot naming/selection (pending)
+
+1. Fully reopen Expo Go. In Farm, find Plots and choose Add plot. Enter a fake name and save offline.
+2. Choose Edit plot name, change it and save. Reopen offline: the plot and selection should remain.
+3. Add a second plot, select between them, then switch farms. Each farm must show only its own plots and remember its selection.
+4. Reconnect and retry sync; confirm Synced with no duplicate plots. Farm area/history must be unchanged.
+5. Check English/Kiswahili labels and blank-name validation. Plot areas should explicitly remain unknown.
+
+## Plot areas (pending)
+
+1. Fully reopen Expo Go; Farm → Plots → select a plot → Record / change plot area.
+2. With Wi-Fi off, enter a positive area within the farm total, today’s date and Correction. Save, then reopen and inspect history.
+3. Reconnect and sync; verify the value and history remain.
+4. Try giving another plot an area that makes the measured total exceed the farm: expect a clear error and no saved change.
+5. Try reducing farm area below the measured plot total: expect rejection. Correct plot measurements first.
+6. Unknown plots stay unknown and do not increase the measured total; unit/language changes must preserve actual areas.
