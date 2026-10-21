@@ -1,4 +1,9 @@
-import { controls } from './control-styles';
+import { WaterSourceManager } from './water-source-manager';
+import { Button } from './ui';
+import { usePalette, space, type, line, radius, border, type Colors } from './design-tokens';
+import { DetailSection } from './detail-section';
+import { WaterStorageManager } from './water-storage-manager';
+import { makeControls } from './control-styles';
 import { PlotManager } from './plot-manager';
 import { AreaEditor } from './area-editor';
 import { useState } from 'react';
@@ -6,6 +11,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { areaToSquareMetres } from '../../../packages/domain';
 import { useApp } from './app-state';
 export function FarmPicker() {
+ const colors = usePalette(); const controls = makeControls(colors); const styles = makeStyles(colors, controls);
+
   const {repo, selectFarm, text, busy, action} = useApp();
   const selected = repo?.selectedFarm(); const farms = repo?.farms() ?? [];
   return <View style={styles.card}><Text style={styles.heading}>{text('myFarms')}</Text>
@@ -17,6 +24,8 @@ export function FarmPicker() {
   </View>;
 }
 export function FarmManager() {
+ const colors = usePalette(); const controls = makeControls(colors); const styles = makeStyles(colors, controls);
+
   const {repo, busy, text, action, displayArea, farmName, setFarmName, area, draftUnit, changeDraftArea, createFarm, sync, setMessage} = useApp();
   const [areaEditing, setAreaEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -26,10 +35,10 @@ export function FarmManager() {
   const farm = repo?.selectedFarm();
   if (!repo) return null;
   const field = (label: string, value: string, onChangeText: (value: string) => void, numeric = false) => <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput style={styles.input} accessibilityLabel={label} editable={!busy} value={value} onChangeText={onChangeText} maxLength={numeric ? 30 : 100} keyboardType={numeric ? 'decimal-pad' : 'default'} /></View>;
-  const button = (label: string, press: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{disabled: busy}} onPress={press} style={({pressed}) => [styles.button, secondary && styles.secondary, busy && controls.disabled, pressed && controls.pressed]}><Text style={[styles.buttonText, secondary && controls.secondaryText]}>{label}</Text></Pressable>;
+  const button = (label: string, press: () => void, secondary = false) => <Button label={label} onPress={press} secondary={secondary} disabled={busy} />;
   return <>
     <View style={styles.card}>
-      {button(text('addFarm'), () => {setAdding(true); setEditing(null); setAreaEditing(null); setError(null);})}
+      {button(text('addFarm'), () => {setAdding(true); setEditing(null); setAreaEditing(null); setError(null);}, adding || editing !== null || areaEditing !== null)}
       {farm?.data.kind === 'farm' && button(text('renameFarm'), () => {
         setAdding(false); setEditing(farm.id); setAreaEditing(null);
         if (farm.data.kind === 'farm') setName(repo.meta('draftName:' + farm.id) || farm.data.name);
@@ -61,29 +70,31 @@ export function FarmManager() {
       {farm && button(text('cancel'), () => {setAdding(false); setError(null);}, true)}
     </View> : null}
     {!adding && <FarmPicker />}
-    {!adding && farm && <PlotManager key={farm.id} farmId={farm.id} />}
     {!adding && editing !== farm?.id && farm?.data.kind === 'farm' && <View style={styles.card}><Text style={styles.heading}>{farm.data.name}</Text>
       <Text style={styles.label}>{text('currentArea')}</Text><Text style={styles.body}>{displayArea(farm.data.areaM2)}</Text>
-      <Text style={styles.body}>{text('soil')}: {text('unknown')} · {text('water')}: {text('unknown')}</Text>
       <Text style={styles.body}>{text('locationMissing')}</Text>
       <Text style={styles.label}>{text(repo.pending().some(row => row.record_id === farm.id && row.failure) ? 'attention' : repo.pending().some(row => row.record_id === farm.id) ? 'pending' : 'synced')}</Text>
 
-      <Text style={styles.heading}>{text('areaHistory')}</Text>
+      <DetailSection key={farm.id + ':history'} title={text('areaHistory')}>
       {farm.data.areaHistory ? [...farm.data.areaHistory].reverse().map(revision => <View key={revision.id} style={styles.field}>
         <Text style={styles.label}>{revision.effectiveDate ?? text('dateUnknown')} · {text(revision.reason)}</Text>
         <Text style={styles.body}>{displayArea(revision.areaM2)}</Text>
       </View>) : <Text style={styles.body}>{text('noAreaHistory')}</Text>}
-      <Text style={styles.body}>{text('landHistoryPending')}</Text>
+      </DetailSection>
     </View>}
+    {!adding && farm && <PlotManager key={farm.id} farmId={farm.id} />}
+    {!adding && farm && <WaterSourceManager key={farm.id + ":sources"} farmId={farm.id} />}
+    {!adding && farm && <WaterStorageManager key={farm.id + ":storage"} farmId={farm.id} />}
+
 
   </>;
 }
-const styles = StyleSheet.create({
-  card: {padding: 20, borderRadius: 20, backgroundColor: '#fff', gap: 14, borderWidth: 1, borderColor: '#dbe2d9'},
-  heading: {fontSize: 23, fontWeight: '700', color: '#183e2d'}, label: {fontSize: 16, fontWeight: '600', color: '#183e2d'},
-  body: {fontSize: 17, lineHeight: 26, color: '#38473d'}, field: {gap: 8},
+const makeStyles = (colors: Colors, controls: ReturnType<typeof makeControls>) => StyleSheet.create({
+  card: {padding: space.xl, borderRadius: radius.card, backgroundColor: colors.surface, gap: space.lg, borderWidth: border.hairline, borderColor: colors.border},
+  heading: {fontSize: type.heading, fontWeight: '700', color: colors.textPrimary}, label: {fontSize: type.body, fontWeight: '600', color: colors.textPrimary},
+  body: {fontSize: type.body, lineHeight: line.body, color: colors.textSecondary}, field: {gap: space.sm},
   input: controls.input,
   choice: controls.choice, selected: controls.selected,
   button: controls.button, buttonText: controls.buttonText, secondary: controls.secondary,
-  error: {fontSize: 15, lineHeight: 22, color: '#9b2525'},
+  error: {fontSize: type.body, lineHeight: line.body, color: colors.danger},
 });

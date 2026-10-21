@@ -1,5 +1,5 @@
 import { reviseArea, todayInKenya } from '../../../packages/domain/land';
-import { recordSchema, type Ack, type Operation, type RecordData, type ServerRecord } from '../../../packages/contracts';
+import { irrigationSchema, type IrrigationData, waterSourceSchema, type WaterSourceData, waterStorageSchema, type WaterStorageData, plotConditionSchema, type PlotConditionData, tenureSchema, type TenureData, soilTestSchema, type SoilTestData, waterObservationSchema, type WaterObservationData, conditionSchema, type ConditionData, recordSchema, type Ack, type Operation, type RecordData, type ServerRecord } from '../../../packages/contracts';
 
 export interface LocalDatabase {
   execSync(sql: string): void;
@@ -107,7 +107,7 @@ export class Repository {
   }
   checkPlotCapacity(id: string, areaM2: number) {
     const record = this.get(id);
-    if (!record || record.data.kind === 'task') return;
+    if (!record || (record.data.kind !== 'farm' && record.data.kind !== 'plot')) return;
     const farmId = record.data.kind === 'farm' ? id : record.data.farmId;
     const farm = this.get(farmId)!;
     const total = record.data.kind === 'farm' ? areaM2 : farm.data.kind === 'farm' ? farm.data.areaM2 : null;
@@ -123,6 +123,101 @@ export class Repository {
       this.checkPlotCapacity(id, areaM2);
       return this.enqueue(id, next);
     });
+  }
+  conditions(plotId: string) {
+    return this.list().filter((r): r is LocalRecord & {data: ConditionData} => !r.deleted && r.data.kind === 'condition' && r.data.plotId === plotId)
+      .sort((a,b) => b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordSoil(farmId: string, plotId: string, values: Pick<ConditionData, 'observedDate' | 'soilType' | 'textureNotes' | 'fertilityNotes' | 'copiedFrom'>) {
+    const plot = this.plots(farmId).find(r => r.id === plotId);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    if(values.copiedFrom){const original=this.get(values.copiedFrom);if(!original||original.deleted||original.data.kind!=='condition'||original.data.farmId!==farmId||original.data.plotId===plotId)throw new Error('COPY_SOURCE_NOT_FOUND');}
+    const data = conditionSchema.parse({kind: 'condition', farmId, plotId, ...values, source: values.copiedFrom?'copied_self_reported':'self_reported'});
+    if (data.observedDate > todayInKenya()) throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(() => {
+      if (!this.get(plotId)) this.enqueue(plotId, plot.data);
+      const id = this.uuid(); this.enqueue(id, data); return id;
+    });
+  }
+  waterObservations(plotId: string) {
+    return this.list().filter((r): r is LocalRecord & {data: WaterObservationData} => !r.deleted && r.data.kind === 'waterObservation' && r.data.plotId === plotId)
+      .sort((a,b) => b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordWater(farmId: string, plotId: string, values: Pick<WaterObservationData, 'observedDate' | 'sourceKnowledge' | 'sources' | 'reliability' | 'shortageNotes' | 'sourceNotes'>) {
+    const plot = this.plots(farmId).find(r => r.id === plotId);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    const data = waterObservationSchema.parse({kind: 'waterObservation', farmId, plotId, ...values, source: 'self_reported'});
+    if (data.observedDate > todayInKenya()) throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(() => {
+      if (!this.get(plotId)) this.enqueue(plotId, plot.data);
+      const id = this.uuid(); this.enqueue(id, data); return id;
+    });
+  }
+  soilTests(plotId: string) {
+    return this.list().filter((r): r is LocalRecord & {data: SoilTestData} => !r.deleted && r.data.kind === 'soilTest' && r.data.plotId === plotId)
+      .sort((a,b) => b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordSoilTest(farmId: string, plotId: string, values: Pick<SoilTestData, 'observedDate' | 'ph' | 'reportReference'>) {
+    const plot = this.plots(farmId).find(r => r.id === plotId);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    const data = soilTestSchema.parse({kind: 'soilTest', farmId, plotId, ...values, source: 'user_entered_report'});
+    if (data.observedDate > todayInKenya()) throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(() => {
+      if (!this.get(plotId)) this.enqueue(plotId, plot.data);
+      const id = this.uuid(); this.enqueue(id, data); return id;
+    });
+  }
+  tenures(plotId: string) {
+    return this.list().filter((r): r is LocalRecord & {data: TenureData} => !r.deleted && r.data.kind === 'tenure' && r.data.plotId === plotId)
+      .sort((a,b) => b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordTenure(farmId: string, plotId: string, values: Pick<TenureData, 'observedDate' | 'tenureType' | 'leaseStart' | 'leaseEnd' | 'notes' | 'leaseCost'>) {
+    const plot = this.plots(farmId).find(r => r.id === plotId);
+    if (!plot || plot.data.kind !== 'plot') throw new Error('PLOT_NOT_FOUND');
+    const data = tenureSchema.parse({kind: 'tenure', farmId, plotId, ...values, source: 'self_reported'});
+    if (data.observedDate > todayInKenya()) throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(() => {
+      if (!this.get(plotId)) this.enqueue(plotId, plot.data);
+      const id = this.uuid(); this.enqueue(id, data); return id;
+    });
+  }
+  plotConditions(plotId:string){
+    return this.list().filter((r):r is LocalRecord & {data:PlotConditionData}=>!r.deleted&&r.data.kind==='plotCondition'&&r.data.plotId===plotId).sort((a,b)=>b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordPlotCondition(farmId:string,plotId:string,values:Pick<PlotConditionData,'observedDate'|'slope'|'drainage'|'roadAccess'|'notes'>){
+    const plot=this.plots(farmId).find(r=>r.id===plotId);if(!plot||plot.data.kind!=='plot')throw new Error('PLOT_NOT_FOUND');
+    const data=plotConditionSchema.parse({kind:'plotCondition',farmId,plotId,...values,source:'self_reported'});
+    if(data.observedDate>todayInKenya())throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(()=>{if(!this.get(plotId))this.enqueue(plotId,plot.data);const id=this.uuid();this.enqueue(id,data);return id;});
+  }
+  waterStorage(farmId:string){
+    return this.list().filter((r):r is LocalRecord & {data:WaterStorageData}=>!r.deleted&&r.data.kind==='waterStorage'&&r.data.farmId===farmId);
+  }
+  saveWaterStorage(farmId:string,values:Pick<WaterStorageData,'name'|'capacity'|'plotIds'|'notes'>,id?:string){
+    const farm=this.get(farmId);if(!farm||farm.deleted||farm.data.kind!=='farm')throw new Error('FARM_NOT_FOUND');
+    if(id){const old=this.get(id);if(!old||old.deleted||old.data.kind!=='waterStorage'||old.data.farmId!==farmId)throw new Error('RESOURCE_NOT_FOUND');}
+    const data=waterStorageSchema.parse({kind:'waterStorage',farmId,...values,source:'self_reported'});
+    const plots=this.plots(farmId);for(const selected of data.plotIds)if(!plots.some(r=>r.id===selected))throw new Error('PLOT_NOT_FOUND');
+    return this.transaction(()=>{for(const selected of data.plotIds){const plot=plots.find(r=>r.id===selected)!;if(!this.get(selected))this.enqueue(selected,plot.data);}const recordId=id??this.uuid();this.enqueue(recordId,data);return recordId;});
+  }
+  waterSources(farmId:string){
+    return this.list().filter((r):r is LocalRecord & {data:WaterSourceData}=>!r.deleted&&r.data.kind==='waterSource'&&r.data.farmId===farmId);
+  }
+  saveWaterSource(farmId:string,values:Pick<WaterSourceData,'name'|'sourceType'|'reliability'|'plotIds'|'notes'|'shortageNotes'>,id?:string){
+    const farm=this.get(farmId);if(!farm||farm.deleted||farm.data.kind!=='farm')throw new Error('FARM_NOT_FOUND');
+    if(id){const old=this.get(id);if(!old||old.deleted||old.data.kind!=='waterSource'||old.data.farmId!==farmId)throw new Error('RESOURCE_NOT_FOUND');}
+    const data=waterSourceSchema.parse({kind:'waterSource',farmId,...values,source:'self_reported'});
+    const plots=this.plots(farmId);for(const selected of data.plotIds)if(!plots.some(r=>r.id===selected))throw new Error('PLOT_NOT_FOUND');
+    return this.transaction(()=>{for(const selected of data.plotIds){const plot=plots.find(r=>r.id===selected)!;if(!this.get(selected))this.enqueue(selected,plot.data);}const recordId=id??this.uuid();this.enqueue(recordId,data);return recordId;});
+  }
+  irrigations(plotId:string){
+    return this.list().filter((r):r is LocalRecord & {data:IrrigationData}=>!r.deleted&&r.data.kind==='irrigation'&&r.data.plotId===plotId).sort((a,b)=>b.data.observedDate.localeCompare(a.data.observedDate));
+  }
+  recordIrrigation(farmId:string,plotId:string,values:Pick<IrrigationData,'observedDate'|'irrigationStatus'|'methods'|'irrigatedAreaM2'|'notes'>){
+    const plot=this.plots(farmId).find(r=>r.id===plotId);if(!plot||plot.data.kind!=='plot')throw new Error('PLOT_NOT_FOUND');
+    const data=irrigationSchema.parse({...values,kind:'irrigation',farmId,plotId,plotAreaM2:plot.data.areaM2,source:'self_reported'});
+    if(data.observedDate>todayInKenya())throw new Error('OBSERVATION_DATE_INVALID');
+    return this.transaction(()=>{if(!this.get(plotId))this.enqueue(plotId,plot.data);const id=this.uuid();this.enqueue(id,data);return id;});
   }
   pending() { return this.db.getAllSync<OutboxRow>('SELECT * FROM outbox ORDER BY sequence'); }
   // Stop at a failure so dependent task/farm writes cannot overtake it.
@@ -175,7 +270,7 @@ export class Repository {
             data = server.kind === 'farm' ? {...server, name: data.name ?? server.name} : {...server, name: data.name};
           }
         }
-        if (data.kind !== 'task' && data.areaM2 !== null) this.checkPlotCapacity(id, data.areaM2);
+        if ((data.kind === 'farm' || data.kind === 'plot') && data.areaM2 !== null) this.checkPlotCapacity(id, data.areaM2);
         this.enqueue(id, data);
       }
     });

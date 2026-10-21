@@ -5,7 +5,7 @@
     "scheme": "acrepilot",
     "version": "0.0.1",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.acrepilot.dev",
       "supportsTablet": true
@@ -25,7 +25,8 @@
         {
           "useSQLCipher": true
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},

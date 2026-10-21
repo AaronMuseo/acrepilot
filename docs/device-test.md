@@ -98,3 +98,56 @@ This does not replace native encryption/performance tests or the deferred authen
 4. Try giving another plot an area that makes the measured total exceed the farm: expect a clear error and no saved change.
 5. Try reducing farm area below the measured plot total: expect rejection. Correct plot measurements first.
 6. Unknown plots stay unknown and do not increase the measured total; unit/language changes must preserve actual areas.
+
+## Soil observations (pending)
+1. Fully reopen the current Expo Go project. Farm → selected plot → Record soil observation.
+2. Select Clay, add a fake texture note and today’s date; save offline. Confirm the form closes and history shows the note and Waiting to sync.
+3. Reopen offline and verify history; reconnect and sync, confirming no duplicates.
+4. Enter a future date and check visible validation. Switch plots and confirm histories remain separate.
+
+## Water observations (pending)
+1. Fully reopen Expo Go; Farm → plot → Record water observation. Unknown should initially be selected.
+2. Choose Known sources and save without selecting a source: expect an error.
+3. Select Rainfall and Borehole, choose Seasonal reliability, add a fake shortage note, save offline. Verify the form closes and history shows both sources.
+4. Reopen offline, reconnect and sync without duplicates. Check No source available stays distinct from Unknown.
+
+## Soil-test pH records (pending)
+1. Fully reopen Expo Go → Farm → selected plot → Record soil test.
+2. Verify blank pH and 15 show errors. Enter fake pH 6.5, today and a test report reference; save offline.
+3. Confirm history retains pH and reference, restart offline, reconnect and sync without duplicates.
+
+## Plot tenure (pending)
+1. Fully reopen Expo Go → Farm → selected plot → Record land tenure.
+2. Choose Leased and enter end before start: expect validation. Correct dates, add fake notes and save offline.
+3. Confirm form closes, history retains dates/notes; restart offline then reconnect/sync without duplicates.
+4. Check Owned/Unknown hide lease fields; date blanks remain unknown.
+
+## Native tenure dates and lease pricing (pending)
+1. Fully reopen Expo Go using the existing QR. Farm → plot → Record land tenure. Tap Effective date: expect iOS native date wheels with Done/Cancel. Confirm Cancel preserves the previous date.
+2. Choose Leased. Select a start/end using native controls; clear an optional date, reselect and confirm no calendar-day shift. Effective dates cannot be future-dated; invalid lease ordering must be rejected.
+3. Enter KES 1250.50, Per acre and Monthly. With a measured plot, inspect the live estimate; without an area, expect an unknown estimate.
+4. Save offline and reopen; history must retain rate, period, dates and snapshot. Change plot area later and confirm the old estimate remains unchanged. Reconnect and sync without duplicates.
+5. Blank price means unknown; 0 is no charge; 1250.501 must show validation.
+
+## Explicit soil copy (pending)
+1. Give one fake plot a soil observation. In another plot in the same farm choose Copy soil from another plot.
+2. Select the source by plot/date, edit a value, then save offline. Confirm copied/self-reported label and source plot/date.
+3. Reopen offline and reconnect/sync; verify no duplicate, source values unchanged. Cancel should retain an unfinished draft; Start a fresh observation should remove copied values.
+
+## Plot physical conditions (pending)
+1. Fully reopen Expo Go → Farm → plot → Record plot conditions. Unknown should be selected for slope, drainage and access.
+2. Pick a valid date with the native date selector, select gentle slope, poor drainage and seasonal access; enter a fake note and save offline.
+3. Confirm form closes and history shows each field; reopen offline, then reconnect/sync without duplicates.
+4. Confirm long labels wrap at large text sizes and Cancel keeps a draft without saving a record.
+
+## Shared water storage (pending)
+1. Fully reopen Expo Go → Farm → Shared water storage → Add water storage.
+2. Blank name and capacity 0 should show validation. Enter a fake tank, 2.500 cubic metres and link two plots. Check 2,500 litres preview and save offline.
+3. Reopen offline; resource/unit/links persist. Edit capacity/name, Cancel and confirm saved value unchanged; reopen edit and confirm draft retained.
+4. Save corrected values, reconnect and sync without duplicates. Switch farms and confirm resources are separated.
+
+Cleanup check: fully close/reopen Expo Go, open Farm, confirm Add/Edit actions, expand/collapse each plot detail, type an unsaved note then collapse/reopen and verify it stays. Switch plots and check their own history; inspect keyboard and large-text scrolling. Browser preview is not evidence of native keyboard/VoiceOver behaviour.
+
+Shared sources phone check: fully restart API and Expo after shared schema changes. In Farm, Add water source, leave type/reliability unknown if unsure, link two plots, add shortage notes, save and edit. Offline: edit, close/reopen Expo Go, confirm retained values/pending state, reconnect/retry and verify Synced. Check keyboard, dark/light, large text and VoiceOver. Source links must never claim measured irrigation coverage or safe water.
+
+Irrigation phone check: fully reopen Expo Go. Farm > selected plot > Irrigation > Record irrigation. Verify unknown default, known with no methods error, multiple selections, empty coverage unknown, excessive area rejection, valid save/history/percentage. Cancel and reopen must retain draft. Save offline, restart, reconnect and confirm synced; change plot area and ensure previous coverage retains old denominator. Check native date picker, keyboard and large text/VoiceOver. Do not infer these checks from browser fixtures.

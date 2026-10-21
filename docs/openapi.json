@@ -986,6 +986,648 @@
                   "water"
                 ],
                 "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "condition"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "soilType": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "sandy",
+                      "clay",
+                      "silty",
+                      "loam",
+                      "other"
+                    ]
+                  },
+                  "textureNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "fertilityNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "self_reported",
+                      "copied_self_reported"
+                    ]
+                  },
+                  "copiedFrom": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "soilType",
+                  "textureNotes",
+                  "fertilityNotes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "waterObservation"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "sourceKnowledge": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "none",
+                      "known"
+                    ]
+                  },
+                  "sources": {
+                    "maxItems": 6,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "rainfall",
+                        "harvestedRain",
+                        "borehole",
+                        "river",
+                        "pipedWater",
+                        "other"
+                      ]
+                    }
+                  },
+                  "reliability": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "reliable",
+                      "seasonal",
+                      "unreliable"
+                    ]
+                  },
+                  "shortageNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "sourceNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "sourceKnowledge",
+                  "sources",
+                  "reliability",
+                  "shortageNotes",
+                  "sourceNotes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "soilTest"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "ph": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 14
+                  },
+                  "reportReference": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "user_entered_report"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "ph",
+                  "reportReference",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "tenure"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "tenureType": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "owned",
+                      "leased"
+                    ]
+                  },
+                  "leaseStart": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "leaseEnd": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "leaseCost": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "amountMinor": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 999999999999
+                          },
+                          "amountText": {
+                            "type": "string",
+                            "pattern": "^\\d{1,10}(\\.\\d{1,2})?$"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "const": "KES"
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": [
+                              "acres",
+                              "hectares",
+                              "squareMetres",
+                              "plot"
+                            ]
+                          },
+                          "period": {
+                            "type": "string",
+                            "enum": [
+                              "monthly",
+                              "yearly",
+                              "seasonal",
+                              "wholeLease"
+                            ]
+                          },
+                          "areaM2": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "amountMinor",
+                          "amountText",
+                          "currency",
+                          "basis",
+                          "period",
+                          "areaM2"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "tenureType",
+                  "leaseStart",
+                  "leaseEnd",
+                  "notes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "plotCondition"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "slope": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "flat",
+                      "gentle",
+                      "steep"
+                    ]
+                  },
+                  "drainage": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "wellDrained",
+                      "moderateDrainage",
+                      "poorDrainage"
+                    ]
+                  },
+                  "roadAccess": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "allWeather",
+                      "seasonalAccess",
+                      "noVehicleAccess"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "slope",
+                  "drainage",
+                  "roadAccess",
+                  "notes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "waterStorage"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "capacity": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "amountText": {
+                            "type": "string",
+                            "pattern": "^\\d{1,12}(\\.\\d{1,3})?$"
+                          },
+                          "unit": {
+                            "type": "string",
+                            "enum": [
+                              "litres",
+                              "cubicMetres"
+                            ]
+                          },
+                          "litres": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000000000000
+                          }
+                        },
+                        "required": [
+                          "amountText",
+                          "unit",
+                          "litres"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "plotIds": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "name",
+                  "capacity",
+                  "plotIds",
+                  "notes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "waterSource"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "sourceType": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "rainfall",
+                      "harvestedRain",
+                      "borehole",
+                      "river",
+                      "pipedWater",
+                      "other"
+                    ]
+                  },
+                  "reliability": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "reliable",
+                      "seasonal",
+                      "unreliable"
+                    ]
+                  },
+                  "plotIds": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "shortageNotes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "name",
+                  "sourceType",
+                  "reliability",
+                  "plotIds",
+                  "notes",
+                  "shortageNotes",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "irrigation"
+                  },
+                  "farmId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "plotId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "observedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "irrigationStatus": {
+                    "type": "string",
+                    "enum": [
+                      "unknown",
+                      "none",
+                      "known"
+                    ]
+                  },
+                  "methods": {
+                    "maxItems": 6,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "drip",
+                        "sprinkler",
+                        "furrow",
+                        "flood",
+                        "manualWatering",
+                        "other"
+                      ]
+                    }
+                  },
+                  "irrigatedAreaM2": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "plotAreaM2": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "self_reported"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "farmId",
+                  "plotId",
+                  "observedDate",
+                  "irrigationStatus",
+                  "methods",
+                  "irrigatedAreaM2",
+                  "plotAreaM2",
+                  "notes",
+                  "source"
+                ],
+                "additionalProperties": false
               }
             ]
           }
@@ -1298,6 +1940,648 @@
                         "water"
                       ],
                       "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "condition"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "soilType": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "sandy",
+                            "clay",
+                            "silty",
+                            "loam",
+                            "other"
+                          ]
+                        },
+                        "textureNotes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "fertilityNotes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "self_reported",
+                            "copied_self_reported"
+                          ]
+                        },
+                        "copiedFrom": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "soilType",
+                        "textureNotes",
+                        "fertilityNotes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "waterObservation"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "sourceKnowledge": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "none",
+                            "known"
+                          ]
+                        },
+                        "sources": {
+                          "maxItems": 6,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "rainfall",
+                              "harvestedRain",
+                              "borehole",
+                              "river",
+                              "pipedWater",
+                              "other"
+                            ]
+                          }
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "reliable",
+                            "seasonal",
+                            "unreliable"
+                          ]
+                        },
+                        "shortageNotes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "sourceNotes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "sourceKnowledge",
+                        "sources",
+                        "reliability",
+                        "shortageNotes",
+                        "sourceNotes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "soilTest"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "ph": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 14
+                        },
+                        "reportReference": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "user_entered_report"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "ph",
+                        "reportReference",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "tenure"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "tenureType": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "owned",
+                            "leased"
+                          ]
+                        },
+                        "leaseStart": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "leaseEnd": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "leaseCost": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "amountMinor": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 999999999999
+                                },
+                                "amountText": {
+                                  "type": "string",
+                                  "pattern": "^\\d{1,10}(\\.\\d{1,2})?$"
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "const": "KES"
+                                },
+                                "basis": {
+                                  "type": "string",
+                                  "enum": [
+                                    "acres",
+                                    "hectares",
+                                    "squareMetres",
+                                    "plot"
+                                  ]
+                                },
+                                "period": {
+                                  "type": "string",
+                                  "enum": [
+                                    "monthly",
+                                    "yearly",
+                                    "seasonal",
+                                    "wholeLease"
+                                  ]
+                                },
+                                "areaM2": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "amountMinor",
+                                "amountText",
+                                "currency",
+                                "basis",
+                                "period",
+                                "areaM2"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "tenureType",
+                        "leaseStart",
+                        "leaseEnd",
+                        "notes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "plotCondition"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "slope": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "flat",
+                            "gentle",
+                            "steep"
+                          ]
+                        },
+                        "drainage": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "wellDrained",
+                            "moderateDrainage",
+                            "poorDrainage"
+                          ]
+                        },
+                        "roadAccess": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "allWeather",
+                            "seasonalAccess",
+                            "noVehicleAccess"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "slope",
+                        "drainage",
+                        "roadAccess",
+                        "notes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "waterStorage"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "capacity": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "amountText": {
+                                  "type": "string",
+                                  "pattern": "^\\d{1,12}(\\.\\d{1,3})?$"
+                                },
+                                "unit": {
+                                  "type": "string",
+                                  "enum": [
+                                    "litres",
+                                    "cubicMetres"
+                                  ]
+                                },
+                                "litres": {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1000000000000
+                                }
+                              },
+                              "required": [
+                                "amountText",
+                                "unit",
+                                "litres"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "plotIds": {
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "name",
+                        "capacity",
+                        "plotIds",
+                        "notes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "waterSource"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "sourceType": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "rainfall",
+                            "harvestedRain",
+                            "borehole",
+                            "river",
+                            "pipedWater",
+                            "other"
+                          ]
+                        },
+                        "reliability": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "reliable",
+                            "seasonal",
+                            "unreliable"
+                          ]
+                        },
+                        "plotIds": {
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "shortageNotes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "name",
+                        "sourceType",
+                        "reliability",
+                        "plotIds",
+                        "notes",
+                        "shortageNotes",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "irrigation"
+                        },
+                        "farmId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "plotId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "observedDate": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "irrigationStatus": {
+                          "type": "string",
+                          "enum": [
+                            "unknown",
+                            "none",
+                            "known"
+                          ]
+                        },
+                        "methods": {
+                          "maxItems": 6,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "drip",
+                              "sprinkler",
+                              "furrow",
+                              "flood",
+                              "manualWatering",
+                              "other"
+                            ]
+                          }
+                        },
+                        "irrigatedAreaM2": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "plotAreaM2": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "self_reported"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "farmId",
+                        "plotId",
+                        "observedDate",
+                        "irrigationStatus",
+                        "methods",
+                        "irrigatedAreaM2",
+                        "plotAreaM2",
+                        "notes",
+                        "source"
+                      ],
+                      "additionalProperties": false
                     }
                   ]
                 }
@@ -1605,6 +2889,648 @@
               "areaM2",
               "soil",
               "water"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "condition"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "soilType": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "sandy",
+                  "clay",
+                  "silty",
+                  "loam",
+                  "other"
+                ]
+              },
+              "textureNotes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "fertilityNotes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "self_reported",
+                  "copied_self_reported"
+                ]
+              },
+              "copiedFrom": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "soilType",
+              "textureNotes",
+              "fertilityNotes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "waterObservation"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "sourceKnowledge": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "none",
+                  "known"
+                ]
+              },
+              "sources": {
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "rainfall",
+                    "harvestedRain",
+                    "borehole",
+                    "river",
+                    "pipedWater",
+                    "other"
+                  ]
+                }
+              },
+              "reliability": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "reliable",
+                  "seasonal",
+                  "unreliable"
+                ]
+              },
+              "shortageNotes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "sourceNotes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "sourceKnowledge",
+              "sources",
+              "reliability",
+              "shortageNotes",
+              "sourceNotes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "soilTest"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "ph": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 14
+              },
+              "reportReference": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "source": {
+                "type": "string",
+                "const": "user_entered_report"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "ph",
+              "reportReference",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "tenure"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "tenureType": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "owned",
+                  "leased"
+                ]
+              },
+              "leaseStart": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "leaseEnd": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "leaseCost": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "amountMinor": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 999999999999
+                      },
+                      "amountText": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}(\\.\\d{1,2})?$"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "KES"
+                      },
+                      "basis": {
+                        "type": "string",
+                        "enum": [
+                          "acres",
+                          "hectares",
+                          "squareMetres",
+                          "plot"
+                        ]
+                      },
+                      "period": {
+                        "type": "string",
+                        "enum": [
+                          "monthly",
+                          "yearly",
+                          "seasonal",
+                          "wholeLease"
+                        ]
+                      },
+                      "areaM2": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000000000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amountMinor",
+                      "amountText",
+                      "currency",
+                      "basis",
+                      "period",
+                      "areaM2"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "tenureType",
+              "leaseStart",
+              "leaseEnd",
+              "notes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "plotCondition"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "slope": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "flat",
+                  "gentle",
+                  "steep"
+                ]
+              },
+              "drainage": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "wellDrained",
+                  "moderateDrainage",
+                  "poorDrainage"
+                ]
+              },
+              "roadAccess": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "allWeather",
+                  "seasonalAccess",
+                  "noVehicleAccess"
+                ]
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "slope",
+              "drainage",
+              "roadAccess",
+              "notes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "waterStorage"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "capacity": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "amountText": {
+                        "type": "string",
+                        "pattern": "^\\d{1,12}(\\.\\d{1,3})?$"
+                      },
+                      "unit": {
+                        "type": "string",
+                        "enum": [
+                          "litres",
+                          "cubicMetres"
+                        ]
+                      },
+                      "litres": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1000000000000
+                      }
+                    },
+                    "required": [
+                      "amountText",
+                      "unit",
+                      "litres"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "plotIds": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "name",
+              "capacity",
+              "plotIds",
+              "notes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "waterSource"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "sourceType": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "rainfall",
+                  "harvestedRain",
+                  "borehole",
+                  "river",
+                  "pipedWater",
+                  "other"
+                ]
+              },
+              "reliability": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "reliable",
+                  "seasonal",
+                  "unreliable"
+                ]
+              },
+              "plotIds": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "shortageNotes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "name",
+              "sourceType",
+              "reliability",
+              "plotIds",
+              "notes",
+              "shortageNotes",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "irrigation"
+              },
+              "farmId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "plotId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "observedDate": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "irrigationStatus": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "none",
+                  "known"
+                ]
+              },
+              "methods": {
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "drip",
+                    "sprinkler",
+                    "furrow",
+                    "flood",
+                    "manualWatering",
+                    "other"
+                  ]
+                }
+              },
+              "irrigatedAreaM2": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "plotAreaM2": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "source": {
+                "type": "string",
+                "const": "self_reported"
+              }
+            },
+            "required": [
+              "kind",
+              "farmId",
+              "plotId",
+              "observedDate",
+              "irrigationStatus",
+              "methods",
+              "irrigatedAreaM2",
+              "plotAreaM2",
+              "notes",
+              "source"
             ],
             "additionalProperties": false
           }

@@ -8,6 +8,7 @@
     "export": "expo export --platform android --platform ios"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "9.1.0",
     "@react-native/metro-config": "0.86.3",
     "expo": "57.0.26",
     "expo-constants": "~57.0.2",

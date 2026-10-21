@@ -1,4 +1,7 @@
 import { todayInKenya } from '../packages/domain/land';
+import { parseKes, estimateLeaseCost, type LeaseCost } from '../packages/domain/lease-cost';
+import { calendarToLocalDate, localDateToCalendar } from '../packages/domain/calendar';
+import { storageCapacity } from '../packages/domain/volume';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -17,6 +20,311 @@ import { messages } from '../packages/translations';
 import { readPreferences, readFarmDraft, saveAreaUnit, saveDraftArea } from '../apps/mobile/src/preferences';
 import { storagePolicy } from '../apps/mobile/src/storage-policy';
 import type { Operation } from '../packages/contracts';
+
+test('irrigation snapshots retain coverage and plot area through restart, retry and land changes',async()=>{
+ const user=await account();const file=join(work,'irrigation.db');let phone=local(user.ownerId,file);const farm=phone.repo.createFarm('Irrigation',10000);const plot=phone.repo.selectedPlot(farm)!.id;
+ phone.repo.revisePlotArea(farm,plot,4000,todayInKenya(),'correction');
+ const values={observedDate:todayInKenya(),irrigationStatus:'known' as const,methods:['drip','sprinkler'] as ('drip'|'sprinkler')[],irrigatedAreaM2:2000,notes:'Count overlapping area once'};
+ const id=phone.repo.recordIrrigation(farm,plot,values);assert.throws(()=>phone.repo.recordIrrigation(farm,plot,{...values,irrigatedAreaM2:4001}));
+ phone.close();phone=local(user.ownerId,file);await request('sync/push',{operations:phone.repo.batch()},user.token);await new SyncEngine(phone.repo,transport(user.token)).run();assert.equal(phone.repo.pending().length,0);
+ phone.repo.revisePlotArea(farm,plot,1000,todayInKenya(),'reduction');await new SyncEngine(phone.repo,transport(user.token)).run();const data=phone.repo.get(id)!.data;assert.ok(data.kind==='irrigation');assert.equal(data.plotAreaM2,4000);assert.equal(data.irrigatedAreaM2,2000);assert.equal(data.methods.length,2);assert.equal(phone.repo.irrigations(plot).length,1);phone.close();
+});
+
+test('irrigation unknown, none and known coverage validate independently',async()=>{
+ const user=await account();const phone=local(user.ownerId);const farm=phone.repo.createFarm('Unknown size',null);const plot=phone.repo.selectedPlot(farm)!.id;
+ const base={observedDate:todayInKenya(),irrigationStatus:'unknown' as const,methods:[],irrigatedAreaM2:null,notes:''};
+ phone.repo.recordIrrigation(farm,plot,base);phone.repo.recordIrrigation(farm,plot,{...base,irrigationStatus:'none',irrigatedAreaM2:0});phone.repo.recordIrrigation(farm,plot,{...base,irrigationStatus:'known',methods:['manualWatering'],irrigatedAreaM2:20});
+ for(const bad of [{...base,irrigationStatus:'known' as const},{...base,irrigatedAreaM2:0},{...base,irrigationStatus:'none' as const,methods:['drip' as const],irrigatedAreaM2:0},{...base,irrigationStatus:'known' as const,methods:['drip' as const,'drip' as const]}, {...base,observedDate:'2999-01-01'}])assert.throws(()=>phone.repo.recordIrrigation(farm,plot,bad));
+ await new SyncEngine(phone.repo,transport(user.token)).run();assert.equal(phone.repo.pending().length,0);assert.equal(phone.repo.irrigations(plot).length,3);assert.ok(phone.repo.irrigations(plot).every(r=>r.data.plotAreaM2===null));phone.close();
+});
+
+test('irrigation API protects parents, history, snapshot bounds and offline historical areas',async()=>{
+ const user=await account();const stranger=await account();const a=local(user.ownerId),b=local(user.ownerId);const farm=a.repo.createFarm('Owned irrigation',10000);const plot=a.repo.selectedPlot(farm)!.id;const other=a.repo.createFarm('Other',null);
+ a.repo.revisePlotArea(farm,plot,4000,todayInKenya(),'correction');await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();
+ const id=b.repo.recordIrrigation(farm,plot,{observedDate:todayInKenya(),irrigationStatus:'known',methods:['drip'],irrigatedAreaM2:2000,notes:''});a.repo.revisePlotArea(farm,plot,1000,todayInKenya(),'reduction');await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();assert.equal(b.repo.pending().length,0);
+ const record=b.repo.get(id)!;assert.ok(record.data.kind==='irrigation');const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+ assert.equal((await push({...record.data,notes:'rewrite'},id,record.version)).body.acknowledgements[0].code,'OBSERVATION_IMMUTABLE');assert.equal((await push({...record.data,farmId:other})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,plotAreaM2:9000})).body.acknowledgements[0].code,'IRRIGATION_AREA_SNAPSHOT_INVALID');assert.equal((await push({...record.data,irrigatedAreaM2:4001})).status,400);assert.equal((await push({...record.data,observedDate:'2999-01-01'})).body.acknowledgements[0].code,'OBSERVATION_DATE_INVALID');a.close();b.close();
+});
+
+test('shared water sources retain unknowns and plot links through offline restart and retry',async()=>{
+ const user=await account();const file=join(work,'water-sources.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Sources',null);const first=phone.repo.selectedPlot(farm)!.id;const second=phone.repo.createPlot(farm,'Second');
+ const id=phone.repo.saveWaterSource(farm,{name:'Borehole',sourceType:'borehole',reliability:'unknown',plotIds:[first,second],notes:'Shared supply',shortageNotes:'Dry months'});
+ phone.close();phone=local(user.ownerId,file);await request('sync/push',{operations:phone.repo.batch()},user.token);await new SyncEngine(phone.repo,transport(user.token)).run();
+ assert.equal(phone.repo.pending().length,0);const data=phone.repo.waterSources(farm)[0].data;assert.equal(data.reliability,'unknown');assert.equal(data.plotIds.length,2);assert.equal(data.shortageNotes,'Dry months');
+ phone.repo.saveWaterSource(farm,{...data,name:'Updated source',sourceType:'unknown',reliability:'seasonal',plotIds:[]},id);await new SyncEngine(phone.repo,transport(user.token)).run();assert.equal(phone.repo.waterSources(farm)[0].data.name,'Updated source');assert.equal(phone.repo.waterObservations(first).length,0);assert.equal(phone.repo.waterStorage(farm).length,0);
+ assert.throws(()=>phone.repo.saveWaterSource(farm,{...data,plotIds:[randomUUID()]}),/PLOT_NOT_FOUND/);assert.throws(()=>phone.repo.saveWaterSource(farm,{...data,name:' '}));phone.close();
+});
+
+test('water source parent and plot links are checked by the API',async()=>{
+ const user=await account();const stranger=await account();const phone=local(user.ownerId);const farm=phone.repo.createFarm('Storage owned',null);const other=phone.repo.createFarm('Other',null);
+ const plot=phone.repo.selectedPlot(farm)!.id;const foreignPlot=phone.repo.selectedPlot(other)!.id;
+ const id=phone.repo.saveWaterSource(farm,{name:'Tank',sourceType:'unknown',reliability:'unknown',shortageNotes:'',plotIds:[plot],notes:''});await new SyncEngine(phone.repo,transport(user.token)).run();
+ const record=phone.repo.get(id)!;assert.ok(record.data.kind==='waterSource');
+ const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+ assert.equal((await push({...record.data,farmId:other,plotIds:[]},id,record.version)).body.acknowledgements[0].code,'PARENT_IMMUTABLE');
+ assert.equal((await push({...record.data,plotIds:[foreignPlot]})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,plotIds:[plot,plot]})).status,400);
+ assert.equal((await push({...record.data,sourceType:'invented'})).status,400);phone.close();
+});
+
+test('water-source edits from two devices retain both values for explicit conflict recovery',async()=>{
+ const user=await account();const a=local(user.ownerId);const b=local(user.ownerId);const farm=a.repo.createFarm('Shared resources',null);
+ const id=a.repo.saveWaterSource(farm,{name:'Tank',sourceType:'borehole',reliability:'unknown',shortageNotes:'',plotIds:[],notes:''});
+ await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();
+ const values={name:'Source',plotIds:[],notes:'',sourceType:'borehole' as const,shortageNotes:''};a.repo.saveWaterSource(farm,{...values,reliability:'reliable'},id);b.repo.saveWaterSource(farm,{...values,reliability:'seasonal'},id);
+ await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();assert.ok(b.repo.pending()[0].failure);
+ b.repo.resolve(id,'mine');await new SyncEngine(b.repo,transport(user.token)).run();assert.equal(b.repo.pending().length,0);assert.equal((b.repo.get(id)!.data as any).reliability,'seasonal');assert.equal(b.repo.db.getAllSync('SELECT * FROM resolutions').length,1);a.close();b.close();
+});
+
+test('water storage retains capacity units, shared plot links and edits through offline retry',async()=>{
+ assert.equal(storageCapacity('2.500','cubicMetres')!.litres,2500);assert.equal(storageCapacity('','litres'),null);
+ for(const value of ['0','-1','1.0001','NaN','1e3'])assert.throws(()=>storageCapacity(value,'litres'));
+ const user=await account();const file=join(work,'water-storage.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Storage farm',null);const first=phone.repo.selectedPlot(farm)!.id;const second=phone.repo.createPlot(farm,'Second');
+ const id=phone.repo.saveWaterStorage(farm,{name:'Tank',capacity:storageCapacity('2.500','cubicMetres'),plotIds:[first,second],notes:'Shared tank'});
+ phone.close();phone=local(user.ownerId,file);
+ await request('sync/push',{operations:phone.repo.batch()},user.token);await new SyncEngine(phone.repo,transport(user.token)).run();
+ assert.equal(phone.repo.pending().length,0);let record=phone.repo.get(id)!;assert.ok(record.data.kind==='waterStorage');
+ assert.equal(record.data.capacity!.litres,2500);assert.equal(record.data.capacity!.amountText,'2.500');assert.equal(record.data.plotIds.length,2);
+ phone.repo.saveWaterStorage(farm,{...record.data,name:'Updated tank',capacity:null,plotIds:[second]},id);
+ await new SyncEngine(phone.repo,transport(user.token)).run();record=phone.repo.get(id)!;assert.ok(record.data.kind==='waterStorage');assert.equal(record.data.capacity,null);assert.equal(record.data.name,'Updated tank');
+ assert.throws(()=>phone.repo.saveWaterStorage(farm,{name:'Bad',capacity:null,plotIds:[randomUUID()],notes:''}),/PLOT_NOT_FOUND/);phone.close();
+});
+
+test('storage resource parent and plot links are checked by the API',async()=>{
+ const user=await account();const stranger=await account();const phone=local(user.ownerId);const farm=phone.repo.createFarm('Storage owned',null);const other=phone.repo.createFarm('Other',null);
+ const plot=phone.repo.selectedPlot(farm)!.id;const foreignPlot=phone.repo.selectedPlot(other)!.id;
+ const id=phone.repo.saveWaterStorage(farm,{name:'Tank',capacity:null,plotIds:[plot],notes:''});await new SyncEngine(phone.repo,transport(user.token)).run();
+ const record=phone.repo.get(id)!;assert.ok(record.data.kind==='waterStorage');
+ const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+ assert.equal((await push({...record.data,farmId:other,plotIds:[]},id,record.version)).body.acknowledgements[0].code,'PARENT_IMMUTABLE');
+ assert.equal((await push({...record.data,plotIds:[foreignPlot]})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,plotIds:[plot,plot]})).status,400);
+ assert.equal((await push({...record.data,capacity:{amountText:'2.5',unit:'cubicMetres',litres:2.5}})).status,400);phone.close();
+});
+
+test('storage edits from two devices retain both values for explicit conflict recovery',async()=>{
+ const user=await account();const a=local(user.ownerId);const b=local(user.ownerId);const farm=a.repo.createFarm('Shared resources',null);
+ const id=a.repo.saveWaterStorage(farm,{name:'Tank',capacity:storageCapacity('1000','litres'),plotIds:[],notes:''});
+ await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();
+ const values={name:'Tank',plotIds:[],notes:''};a.repo.saveWaterStorage(farm,{...values,capacity:storageCapacity('2000','litres')},id);b.repo.saveWaterStorage(farm,{...values,capacity:storageCapacity('3000','litres')},id);
+ await new SyncEngine(a.repo,transport(user.token)).run();await new SyncEngine(b.repo,transport(user.token)).run();assert.ok(b.repo.pending()[0].failure);
+ b.repo.resolve(id,'mine');await new SyncEngine(b.repo,transport(user.token)).run();assert.equal(b.repo.pending().length,0);assert.equal((b.repo.get(id)!.data as any).capacity.litres,3000);assert.equal(b.repo.db.getAllSync('SELECT * FROM resolutions').length,1);a.close();b.close();
+});
+
+test('plot slope drainage and access snapshots survive offline restart and retry with unknowns explicit',async()=>{
+ const user=await account();const file=join(work,'plot-conditions.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Conditions',null);const plot=phone.repo.selectedPlot(farm)!.id;
+ const values={observedDate:todayInKenya(),slope:'gentle' as const,drainage:'poorDrainage' as const,roadAccess:'seasonalAccess' as const,notes:'Test observation'};
+ phone.repo.recordPlotCondition(farm,plot,values);
+ phone.repo.recordPlotCondition(farm,plot,{...values,slope:'unknown',drainage:'unknown',roadAccess:'unknown',notes:''});
+ assert.throws(()=>phone.repo.recordPlotCondition(farm,plot,{...values,observedDate:'2999-01-01'}));
+ assert.throws(()=>phone.repo.recordPlotCondition(farm,plot,{...values,notes:'x'.repeat(501)}));
+ phone.close();phone=local(user.ownerId,file);
+ await request('sync/push',{operations:phone.repo.batch()},user.token);
+ await new SyncEngine(phone.repo,transport(user.token)).run();
+ assert.equal(phone.repo.pending().length,0);assert.equal(phone.repo.plotConditions(plot).length,2);
+ assert.ok(phone.repo.plotConditions(plot).some(r=>r.data.drainage==='poorDrainage'));
+ assert.ok(phone.repo.plotConditions(plot).some(r=>r.data.slope==='unknown'));
+ assert.equal(phone.repo.conditions(plot).length,0);phone.close();
+});
+
+test('physical condition history is immutable and requires matching owned farm and plot',async()=>{
+ const user=await account();const stranger=await account();const phone=local(user.ownerId);
+ const farm=phone.repo.createFarm('Owned conditions',null);const plot=phone.repo.selectedPlot(farm)!.id;
+ const other=phone.repo.createFarm('Other',null);
+ const id=phone.repo.recordPlotCondition(farm,plot,{observedDate:todayInKenya(),slope:'flat',drainage:'wellDrained',roadAccess:'allWeather',notes:''});
+ await new SyncEngine(phone.repo,transport(user.token)).run();const record=phone.repo.get(id)!;assert.ok(record.data.kind==='plotCondition');
+ const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+ assert.equal((await push({...record.data,notes:'Rewrite'},id,record.version)).body.acknowledgements[0].code,'OBSERVATION_IMMUTABLE');
+ assert.equal((await push({...record.data,farmId:other})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,slope:'assumed'})).status,400);
+ assert.equal((await push({...record.data,observedDate:'2999-01-01'})).body.acknowledgements[0].code,'OBSERVATION_DATE_INVALID');phone.close();
+});
+
+test('explicit soil copies keep editable independent values and provenance through offline retry',async()=>{
+ const user=await account();const file=join(work,'soil-copy.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Copy farm',null);const sourcePlot=phone.repo.selectedPlot(farm)!.id;const target=phone.repo.createPlot(farm,'Target');
+ const values={observedDate:todayInKenya(),soilType:'clay' as const,textureNotes:'Source texture',fertilityNotes:'Source notes'};
+ const source=phone.repo.recordSoil(farm,sourcePlot,values);
+ const copied=phone.repo.recordSoil(farm,target,{...values,soilType:'loam',textureNotes:'Edited for target',copiedFrom:source});
+ assert.throws(()=>phone.repo.recordSoil(farm,sourcePlot,{...values,copiedFrom:source}),/COPY_SOURCE_NOT_FOUND/);
+ assert.throws(()=>phone.repo.recordSoil(farm,target,{...values,copiedFrom:randomUUID()}),/COPY_SOURCE_NOT_FOUND/);
+ phone.close();phone=local(user.ownerId,file);
+ await request('sync/push',{operations:phone.repo.batch()},user.token);await new SyncEngine(phone.repo,transport(user.token)).run();
+ assert.equal(phone.repo.pending().length,0);
+ const data=phone.repo.get(copied)!.data;assert.ok(data.kind==='condition');assert.equal(data.source,'copied_self_reported');assert.equal(data.copiedFrom,source);assert.equal(data.soilType,'loam');
+ assert.equal((phone.repo.get(source)!.data as any).textureNotes,'Source texture');
+ const other=phone.repo.createFarm('Other',null);const otherPlot=phone.repo.selectedPlot(other)!.id;
+ assert.throws(()=>phone.repo.recordSoil(other,otherPlot,{...values,copiedFrom:source}),/COPY_SOURCE_NOT_FOUND/);phone.close();
+});
+
+test('server validates soil copy ownership and rejects fabricated or missing provenance',async()=>{
+ const user=await account();const other=await account();const phone=local(user.ownerId);const farm=phone.repo.createFarm('Source',null);const sourcePlot=phone.repo.selectedPlot(farm)!.id;const target=phone.repo.createPlot(farm,'Target');
+ const source=phone.repo.recordSoil(farm,sourcePlot,{observedDate:todayInKenya(),soilType:'sandy',textureNotes:'',fertilityNotes:''});
+ await new SyncEngine(phone.repo,transport(user.token)).run();
+ const data={kind:'condition',farmId:farm,plotId:target,observedDate:todayInKenya(),soilType:'clay',textureNotes:'Edited',fertilityNotes:'',source:'copied_self_reported',copiedFrom:source};
+ const push=async(value:any,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId:randomUUID(),baseVersion:0,data:value}]},token);
+ assert.equal((await push(data)).body.acknowledgements[0].status,'accepted');
+ assert.equal((await push({...data,copiedFrom:randomUUID()})).body.acknowledgements[0].code,'COPY_SOURCE_NOT_FOUND');
+ assert.equal((await push(data,other.token)).body.acknowledgements[0].code,'COPY_SOURCE_NOT_FOUND');
+ assert.equal((await push({...data,plotId:sourcePlot})).body.acknowledgements[0].code,'COPY_SOURCE_NOT_FOUND');
+ assert.equal((await push({...data,copiedFrom:undefined})).status,400);
+ assert.equal((await push({...data,source:'self_reported'})).status,400);phone.close();
+});
+
+test('lease money uses exact minor units and rounds once across area bases',()=>{
+ assert.equal(parseKes('1234.50'),123450);assert.equal(parseKes('0'),0);assert.equal(parseKes('001.20'),120);
+ for(const value of ['', '-1','1.001','1,000','1e3','10000000000.00'])assert.throws(()=>parseKes(value));
+ const base:LeaseCost={amountMinor:100000,amountText:'1000',currency:'KES',basis:'acres',period:'yearly',areaM2:4046.8564224};
+ assert.equal(estimateLeaseCost(base),100000);
+ assert.equal(estimateLeaseCost({...base,areaM2:8093.7128448}),200000);
+ assert.equal(estimateLeaseCost({...base,basis:'hectares',areaM2:25000}),250000);
+ assert.equal(estimateLeaseCost({...base,basis:'plot',areaM2:null}),100000);
+ assert.equal(estimateLeaseCost({...base,areaM2:null}),null);
+ assert.equal(estimateLeaseCost({...base,basis:'squareMetres',amountMinor:1,areaM2:0.5}),1);
+ assert.throws(()=>estimateLeaseCost({...base,basis:'squareMetres',amountMinor:999999999999,areaM2:1e9}));
+ for(const value of ['2026-01-01','2026-10-18','2028-02-29'])assert.equal(localDateToCalendar(calendarToLocalDate(value)),value);
+});
+
+test('lease rates retain original precision and area snapshot through restart and retries',async()=>{
+ const user=await account();const file=join(work,'lease-cost.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Priced',10000);const plot=phone.repo.selectedPlot(farm)!.id;
+ phone.repo.revisePlotArea(farm,plot,4046.8564224,todayInKenya(),'correction');
+ const leaseCost:LeaseCost={amountMinor:125050,amountText:'1250.50',currency:'KES',basis:'acres',period:'yearly',areaM2:4046.8564224};
+ const values={observedDate:todayInKenya(),tenureType:'leased' as const,leaseStart:null,leaseEnd:null,notes:'Test cost',leaseCost};
+ const id=phone.repo.recordTenure(farm,plot,values);
+ phone.close();phone=local(user.ownerId,file);
+ await request('sync/push',{operations:phone.repo.batch()},user.token);
+ await new SyncEngine(phone.repo,transport(user.token)).run();assert.equal(phone.repo.pending().length,0);
+ phone.repo.revisePlotArea(farm,plot,8093.7128448,todayInKenya(),'correction');
+ await new SyncEngine(phone.repo,transport(user.token)).run();
+ const data=phone.repo.get(id)!.data;assert.ok(data.kind==='tenure');assert.equal(data.leaseCost!.amountText,'1250.50');
+ assert.equal(estimateLeaseCost(data.leaseCost!),125050);
+ assert.throws(()=>phone.repo.recordTenure(farm,plot,{...values,tenureType:'owned'}));
+ assert.throws(()=>phone.repo.recordTenure(farm,plot,{...values,leaseCost:{...leaseCost,amountMinor:1}}));
+ const result=await request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId:randomUUID(),baseVersion:0,data:{...data,leaseCost:{...leaseCost,amountMinor:0.5}}}]},user.token);
+ assert.equal(result.status,400);phone.close();
+});
+
+test('tenure history persists offline, validates leases and preserves immutable owned snapshots',async()=>{
+ const user=await account();const stranger=await account();const file=join(work,'tenure.db');let phone=local(user.ownerId,file);
+ const farm=phone.repo.createFarm('Tenure farm',null);const plot=phone.repo.selectedPlot(farm)!.id;
+ const values={observedDate:todayInKenya(),tenureType:'leased' as const,leaseStart:'2026-01-01',leaseEnd:'2027-01-01',notes:'Test agreement'};
+ const id=phone.repo.recordTenure(farm,plot,values);
+ phone.repo.recordTenure(farm,plot,{...values,tenureType:'unknown',leaseStart:null,leaseEnd:null});
+ assert.throws(()=>phone.repo.recordTenure(farm,plot,{...values,leaseEnd:'2025-01-01'}));
+ assert.throws(()=>phone.repo.recordTenure(farm,plot,{...values,tenureType:'owned'}));
+ assert.throws(()=>phone.repo.recordTenure(farm,plot,{...values,observedDate:'2999-01-01'}));
+ phone.close();phone=local(user.ownerId,file);
+ await request('sync/push',{operations:phone.repo.batch()},user.token);
+ await new SyncEngine(phone.repo,transport(user.token)).run();
+ assert.equal(phone.repo.pending().length,0);assert.equal(phone.repo.tenures(plot).length,2);
+ const record=phone.repo.get(id)!;assert.ok(record.data.kind==='tenure');assert.equal(record.data.leaseEnd,'2027-01-01');
+ const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+ assert.equal((await push({...record.data,notes:'Rewrite'},id,record.version)).body.acknowledgements[0].code,'OBSERVATION_IMMUTABLE');
+ assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,plotId:randomUUID()})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+ assert.equal((await push({...record.data,leaseStart:'2026-02-30'})).status,400);
+ phone.close();
+});
+
+test('soil report pH records persist offline with immutable history and owned plot links',async()=>{
+  const user=await account();const stranger=await account();const file=join(work,'soil-tests.db');let phone=local(user.ownerId,file);
+  const farm=phone.repo.createFarm('Report farm',null);const plot=phone.repo.selectedPlot(farm)!.id;
+  const values={observedDate:todayInKenya(),ph:6.5,reportReference:'Test report ABC'};
+  const id=phone.repo.recordSoilTest(farm,plot,values);phone.repo.recordSoilTest(farm,plot,{...values,ph:7});
+  assert.throws(()=>phone.repo.recordSoilTest(farm,plot,{...values,ph:14.1}));
+  assert.throws(()=>phone.repo.recordSoilTest(farm,plot,{...values,ph:-1}));
+  assert.throws(()=>phone.repo.recordSoilTest(farm,plot,{...values,ph:NaN}));
+  assert.throws(()=>phone.repo.recordSoilTest(farm,plot,{...values,observedDate:'2999-01-01'}));
+  phone.close();phone=local(user.ownerId,file);
+  await request('sync/push',{operations:phone.repo.batch()},user.token);
+  await new SyncEngine(phone.repo,transport(user.token)).run();
+  assert.equal(phone.repo.pending().length,0);assert.equal(phone.repo.soilTests(plot).length,2);
+  const record=phone.repo.get(id)!;assert.ok(record.data.kind==='soilTest');assert.equal(record.data.ph,6.5);
+  const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+  assert.equal((await push({...record.data,ph:8},id,record.version)).body.acknowledgements[0].code,'OBSERVATION_IMMUTABLE');
+  assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push({...record.data,plotId:randomUUID()})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push({...record.data,ph:15})).status,400);
+  assert.equal((await push({...record.data,reportReference:'x'.repeat(201)})).status,400);
+  phone.close();
+});
+
+test('water observations preserve multiple sources and unknown/none through offline restart and sync', async () => {
+  const user=await account(); const file=join(work,'water.db'); let phone=local(user.ownerId,file);
+  const farm=phone.repo.createFarm('Water farm',null); const plot=phone.repo.selectedPlot(farm)!.id;
+  const base={observedDate:todayInKenya(),sourceKnowledge:'known' as const,sources:['rainfall','borehole'] as ('rainfall'|'borehole')[],reliability:'seasonal' as const,shortageNotes:'Dry months',sourceNotes:'Shared borehole'};
+  phone.repo.recordWater(farm,plot,base);
+  phone.repo.recordWater(farm,plot,{...base,sourceKnowledge:'unknown',sources:[],reliability:'unknown'});
+  phone.repo.recordWater(farm,plot,{...base,sourceKnowledge:'none',sources:[],reliability:'unknown'});
+  assert.throws(()=>phone.repo.recordWater(farm,plot,{...base,sources:[]}));
+  assert.throws(()=>phone.repo.recordWater(farm,plot,{...base,sources:['rainfall','rainfall']}));
+  assert.throws(()=>phone.repo.recordWater(farm,plot,{...base,sourceKnowledge:'unknown'}));
+  assert.throws(()=>phone.repo.recordWater(farm,plot,{...base,observedDate:'2999-01-01'}),/OBSERVATION_DATE_INVALID/);
+  phone.close();phone=local(user.ownerId,file);
+  await request('sync/push',{operations:phone.repo.batch()},user.token);
+  await new SyncEngine(phone.repo,transport(user.token)).run();
+  assert.equal(phone.repo.pending().length,0);assert.equal(phone.repo.waterObservations(plot).length,3);
+  assert.deepEqual(phone.repo.waterObservations(plot).find(r=>r.data.sourceKnowledge==='known')!.data.sources,['rainfall','borehole']);
+  assert.equal(phone.repo.conditions(plot).length,0);phone.close();
+});
+
+test('water observation API enforces immutable history, source validity and matching owned parents', async()=>{
+  const user=await account();const stranger=await account();const phone=local(user.ownerId);
+  const farm=phone.repo.createFarm('Owned',null);const plot=phone.repo.selectedPlot(farm)!.id;const other=phone.repo.createFarm('Other',null);
+  const id=phone.repo.recordWater(farm,plot,{observedDate:todayInKenya(),sourceKnowledge:'known',sources:['rainfall'],reliability:'unknown',shortageNotes:'',sourceNotes:''});
+  await new SyncEngine(phone.repo,transport(user.token)).run();const record=phone.repo.get(id)!;assert.ok(record.data.kind==='waterObservation');
+  const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token);
+  assert.equal((await push({...record.data,shortageNotes:'Rewrite'},id,record.version)).body.acknowledgements[0].code,'OBSERVATION_IMMUTABLE');
+  assert.equal((await push({...record.data,farmId:other})).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push(record.data,randomUUID(),0,stranger.token)).body.acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push({...record.data,sources:[]})).status,400);
+  assert.equal((await push({...record.data,sourceNotes:'x'.repeat(501)})).status,400);
+  phone.close();
+});
+
+test('soil observations retain distinct offline history through restart and lost acknowledgements', async () => {
+  const user = await account(); const file = join(work,'soil.db'); let phone = local(user.ownerId,file);
+  const farm = phone.repo.createFarm('Soil test farm',null); const plot = phone.repo.selectedPlot(farm)!.id;
+  const values = {observedDate:todayInKenya(),soilType:'clay' as const,textureNotes:'Sticky when wet',fertilityNotes:''};
+  phone.repo.recordSoil(farm,plot,values);
+  phone.repo.recordSoil(farm,plot,{...values,soilType:'unknown',textureNotes:'Needs another observation'});
+  phone.close(); phone=local(user.ownerId,file);
+  assert.equal(phone.repo.conditions(plot).length,2);
+  await request('sync/push',{operations:phone.repo.batch()},user.token);
+  await new SyncEngine(phone.repo,transport(user.token)).run();
+  assert.equal(phone.repo.pending().length,0); assert.equal(phone.repo.conditions(plot).length,2);
+  assert.ok(phone.repo.conditions(plot).some(r=>r.data.textureNotes==='Sticky when wet'));
+  const other = phone.repo.createFarm('Other',null);
+  assert.throws(()=>phone.repo.recordSoil(other,plot,values),/PLOT_NOT_FOUND/);
+  assert.throws(()=>phone.repo.recordSoil(farm,plot,{...values,observedDate:'2999-01-01'}),/OBSERVATION_DATE_INVALID/);
+  assert.throws(()=>phone.repo.recordSoil(farm,plot,{...values,observedDate:'2026-02-30'}));
+  phone.close();
+});
+
+test('soil snapshots are immutable and require matching owned farm and plot parents', async () => {
+  const user=await account(); const stranger=await account(); const phone=local(user.ownerId);
+  const farm=phone.repo.createFarm('Owned',null); const plot=phone.repo.selectedPlot(farm)!.id;
+  const other=phone.repo.createFarm('Other',null);
+  const id=phone.repo.recordSoil(farm,plot,{observedDate:todayInKenya(),soilType:'loam',textureNotes:'',fertilityNotes:''});
+  await new SyncEngine(phone.repo,transport(user.token)).run();
+  const record=phone.repo.get(id)!; assert.ok(record.data.kind==='condition');
+  const push=async(data:any,recordId:string=randomUUID(),baseVersion=0,token=user.token)=>
+    (await request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId,baseVersion,data}]},token)).body;
+  assert.equal((await push({...record.data,textureNotes:'Rewrite'},id,record.version)).acknowledgements[0].code,'OBSERVATION_IMMUTABLE');
+  assert.equal((await push({...record.data,farmId:other})).acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push(record.data,randomUUID(),0,stranger.token)).acknowledgements[0].code,'PARENT_NOT_FOUND');
+  assert.equal((await push({...record.data,observedDate:'2999-01-01'})).acknowledgements[0].code,'OBSERVATION_DATE_INVALID');
+  assert.equal((await request('sync/push',{operations:[{operationId:randomUUID(),deviceId:randomUUID(),recordId:randomUUID(),baseVersion:0,data:{...record.data,textureNotes:'x'.repeat(501)}}]},user.token)).status,400);
+  phone.close();
+});
 
 test('plot measurement history persists offline and enforces local farm capacity', async () => {
   const user = await account(); const file = join(work, 'plot-areas.db'); let phone = local(user.ownerId, file);

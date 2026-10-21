@@ -1,6 +1,6 @@
 # Progress and requirement-to-test checklist
 
-Updated 2026-10-01. The full accepted specification is `build-plan.md`; no accepted capability is removed by this slice. Checked items describe implemented/tested scope only. **P0 exit gate remains open until signed physical-device checks pass.**
+Updated 2026-10-18. Current overview: [checklist.md](checklist.md). Chronological entries below retain their original test counts/status. The full accepted specification is `build-plan.md`; no accepted capability is removed by this slice. Checked items describe implemented/tested scope only. **P0 exit gate remains open until signed physical-device checks pass.**
 
 ## P0 / first slice
 
@@ -36,10 +36,10 @@ Updated 2026-10-01. The full accepted specification is `build-plan.md`; no accep
 
 | ID | Phase | Current evidence and next gate |
 |---|---|---|
-| R01 | P1 | Fixture OTP/session tests only; real phone/email, password/code login, linking, rotation/recovery pending |
-| R02 | P1 onward | Bilingual first slice; full settings, units/navigation and reviewed terminology pending |
-| R03 | P2 | Multiple local farms with default plots, selected-farm tasks and name edits; plot subdivision, pins/resources/conditions pending |
-| R04 | P2 | Owned/leased, sold, expansion, split/merge and preserved area history pending |
+| R01 | P1 | Fixture OTP/password/session/rotation implemented; real verified channels, linking/recovery and deferred sign-in checks remain open |
+| R02 | P1 onward | Bilingual shell, units/settings/bottom navigation implemented; full terminology/accessibility review pending |
+| R03 | P2 | Farms/plots, selection/names, areas and soil/water/pH records implemented; pins, full resources/conditions and subdivision remain open |
+| R04 | P2 | Dated area history and manual owned/leased/unknown tenure implemented; sales, split/merge/lineage and full lease workflow pending |
 | R05 | P3 | Explicit test guide only; 20 reviewed crops (5/10/5), varieties, comparisons/custom entries pending |
 | R06 | P3 | Source register started; admin, publication, translations/versioning/citations workflow pending |
 | R07 | P4/P6 | Suitability and evidenced planting windows pending; no recommendations fabricated |
@@ -201,3 +201,149 @@ No new provider credentials or verified external data are required. All accepted
 - [x] Corrected required-area validation wording; typecheck passed.
 - [x] Recorded mandatory rendered UI checks in AGENTS.md.
 - [ ] Aaron to retry in freshly reopened Expo Go and confirm label/save.
+
+## Soil observation slice — 2026-10-18
+
+- [x] Recorded Aaron’s final confirmation that the previous save/label issue worked after the reload. Earlier pending entries are historical; no additional unreported device checks are inferred.
+- [x] Optional plot soil type, texture/fertility notes and valid past/today observation date, labelled self-reported. Unknown remains an explicit choice.
+- [x] Separate immutable history records, offline draft/save, owned farm/plot parent checks and retry deduplication. No inferred lab result or agricultural advice.
+- [x] Typecheck and all 36 tests passed; OpenAPI updated.
+- [x] Rendered actual SoilObservations component at 390px through React Native Web with fake state; checked labels, date rejection, valid save and visible history.
+- [ ] Physical-phone soil form/keyboard, offline restart and reconnect check.
+- [ ] Soil lab results/pH, water/resources/conditions, copy-with-provenance, tenure and split/merge/sale/map work remain accepted and pending. Sign-in follow-up stays deferred.
+
+This slice needs no external credentials or verified data. Provider-backed integrations remain unconfigured.
+- [x] Soil slice Android/iOS exports passed; preview restarted on 192.168.1.11.
+
+## Water observation slice — 2026-10-18
+
+- [x] Plot-specific dated water snapshots: unknown/no source/known distinction, multiple sources, overall supply reliability and optional source/seasonal-shortage notes.
+- [x] Self-reported immutable history, persisted drafts, offline save/retry and matching owned farm/plot validation.
+- [x] Typecheck and all 38 tests passed; OpenAPI regenerated.
+- [x] Rendered actual component at 390px with fake state: caught and fixed unselected default, checked Unknown, required-source error, rainfall+borehole selection, seasonal reliability, save closing form, history, reset and Cancel. Screenshot .local/water-ui-check.png.
+- [ ] Physical iPhone keyboard/offline restart/reconnect check.
+- [ ] Shared farm-wide water source entities, source-specific reliability, irrigation coverage/storage/pumping costs, soil labs and all other accepted P2 requirements remain pending. Sign-in remains deferred.
+
+No credentials or external verified data required; no supply, safety or irrigation coverage is inferred from these observations.
+- [x] Water slice mobile exports passed; clean Expo Go restart prepared at the same QR address.
+
+## Soil-test pH records — 2026-10-18
+
+- [x] Dated per-plot pH report entries, optional lab/report reference, separate from visual observations and explicitly not independently verified.
+- [x] Immutable history, persisted drafts, offline save/retry and owned parent checks. Blank/out-of-range/nonfinite pH and future dates rejected.
+- [x] Rendered form checked at 390px: blank/15 pH errors, decimal-comma 6,5 saved as 6.5, reference retained, form closes, reopens empty, Cancel works. Screenshot .local/soil-test-ui-check.png.
+- [ ] Phone keyboard/offline restart/reconnect confirmation.
+- [ ] Other lab analytes/methods/report attachments, verified lab integration and advice remain pending; no fertiliser/lime calculation is introduced. All other accepted scope and deferred sign-in work remain open.
+
+No new credentials are needed for manual report entry. Future lab integration would require a provider and verified data.
+- [x] Soil-test validation: typecheck, all 39 tests, OpenAPI generation and Android/iOS exports passed.
+
+## Plot tenure and consolidated checklist — 2026-10-18
+
+- [x] Added docs/checklist.md as the current done/pending overview; updated R01–R04 traceability while retaining chronological evidence.
+- [x] Plot tenure owned/leased/unknown, effective date, optional lease dates and notes; independent immutable snapshots with offline drafts/save/retry and owned parents. End-before-start and future effective dates rejected.
+- [x] Rendered actual tenure component at 390px using fake state: Unknown default, conditional lease fields, invalid date ordering, save closes form, retained dates/notes, reset and Cancel. Screenshot .local/tenure-ui-check.png.
+- [ ] Phone tenure keyboard/offline restart/reconnect check.
+- [ ] Lease costs, reminders, harvest-over-lease acknowledgement, sold/inactive handling and split/merge/lineage remain open. No ownership verification or account transfer is implied.
+
+Manual tenure entry requires no new credentials. All accepted scope and deferred sign-in work are preserved.
+- [x] Tenure validation: typecheck, all 40 tests, OpenAPI generation and Android/iOS exports passed.
+
+## Tenure date pickers and lease pricing — 2026-10-18
+
+- [x] Expo-compatible native date picker 9.1.0: iOS native wheel in a sheet with Done/Cancel, Android system dialog; browser date input for preview. Optional lease dates can be cleared; effective date capped at today. Calendar-only values use local calendar components without UTC shifts.
+- [x] Optional KES agreed rate per acre/hectare/square metre/whole plot, monthly/yearly/seasonal/whole-lease period. Blank cost stays unknown and zero means no charge.
+- [x] Money stored as integer minor units plus original decimal precision, currency, basis, period and area snapshot. Exact integer-rational estimates round once; changing current plot area cannot rewrite old estimates. No payment/expense is posted.
+- [x] Typecheck and all 42 tests passed on rerun after one transient test-server connection reset. OpenAPI regenerated; Android/iOS exports passed.
+- [x] Actual tenure form rendered at 390px with browser date controls: date save/clear, draft restoration, invalid precision, live estimate, monthly per-acre save/history, reset and Cancel checked. Fixed browser date-event propagation found during testing.
+- [ ] Native iPhone wheel/Done/Cancel, date preservation, keyboard and offline priced tenure phone checks.
+- [ ] Lease reminders and harvest-beyond-lease acknowledgement remain pending.
+
+Native picker references: https://docs.expo.dev/versions/latest/sdk/date-time-picker/ and https://github.com/react-native-datetimepicker/datetimepicker . No new credentials required.
+
+## Explicit soil copying with provenance — 2026-10-18
+
+- [x] Choose an existing soil observation from another plot in the same farm, review/edit a copied draft and explicitly Save. Source stays unchanged; copied/self-reported label and immutable source record ID remain visible in history. No proximity inference or lab-result copying.
+- [x] Backend/local checks require an available same-farm, different-plot source owned by the account. Copied provenance is mandatory for copied records and forbidden on fresh self-reports.
+- [x] Typecheck and all 44 tests passed; OpenAPI regenerated. Tests cover edited copies, offline restart/lost acknowledgements, source retention and invalid/cross-owner provenance.
+- [x] Rendered actual component checked: source choice, populated values, edit/save/history label, Cancel/draft restoration and fresh-observation reset. Screenshot .local/soil-copy-ui-check.png.
+- [ ] Phone copied-draft/offline restart/reconnect check.
+- [ ] Copying other condition types and broader farm-wide/shared resources remain pending. All other accepted requirements and deferred sign-in work retained.
+
+No credentials or external data needed.
+- [x] Soil-copy Android/iOS exports passed.
+
+## Plot slope, drainage and access — 2026-10-18
+
+- [x] Dated plot-condition snapshots for slope, drainage, road/vehicle access and optional notes, with explicit unknown defaults and self-reported labelling.
+- [x] Persistent drafts, offline history/retry, matching owned farm/plot validation and immutable accepted snapshots.
+- [x] Typecheck and all 46 tests passed; OpenAPI regenerated.
+- [x] Actual component rendered at 390px with fake state: unknown defaults, date rejection, selections, valid save/history, reset, long-label wrapping and Cancel checked. Uses shared native date selector on iOS/Android; browser date control was the inspected surface.
+- [ ] Native phone form/keyboard/offline restart/reconnect check.
+- [ ] Copying these conditions, map pins, active/sold states and other shared resources remain pending. All accepted requirements and deferred sign-in work retained.
+
+No new credentials or external verified data required. No surveyed slope or guaranteed access is inferred.
+- [x] Plot-condition Android/iOS exports passed.
+
+## Shared water-storage resources — 2026-10-18
+
+- [x] Farm-wide named water-storage records with optional capacity in litres/cubic metres, original unit/precision retained and canonical litres. Optional multi-plot links and notes; capacity is explicitly distinct from available water.
+- [x] Offline create/edit with persisted drafts, duplicate-safe retries, account/farm/plot link checks and immutable farm ownership. Two-device edits require explicit conflict recovery and retain both values in the audit.
+- [x] Typecheck and all 49 tests passed; OpenAPI regenerated.
+- [x] Actual resource component rendered at 390px with fake state: name/zero validation, cubic-metre/litre equivalent, multi-plot selection, successful add/edit, Cancel protection and draft restoration checked. Screenshot .local/water-storage-ui-check.png.
+- [ ] Phone resource add/edit/offline restart/reconnect check.
+- [ ] Water-source entities, actual irrigation coverage/methods/pumping costs, remaining resources and other accepted requirements remain pending. Sign-in follow-up remains deferred.
+
+No provider credentials or external verified data required. Plot links do not infer irrigation coverage or safety; stock movement/current water inventory remains outside this slice.
+- [x] Shared storage Android/iOS exports passed.
+
+## UI audit and cleanup — 2026-10-19
+
+- [x] Audited Farm/plot UI and shell code; findings and retained follow-ups in ui-audit.md.
+- [x] Farm summary before plots, expandable plot details/history, removal of misleading unknown summaries and roadmap clutter, contextual storage help.
+- [x] Combined Farm component preview exercised: toggles, draft retention/save, plot switching, management open/cancel and storage add/edit/cancel. Narrow/390px desktop browser checked; fake repository, not native-device evidence.
+- [x] Typecheck and all 49 tests pass. Accepted scope, saved data and deferred sign-in preserved.
+- [ ] iPhone full reload: section labels, scrolling, keyboard, VoiceOver/large text and draft preservation.
+
+- [x] Cleanup Android/iOS exports pass; full web export limitation recorded in validation.md.
+
+## UI refinement — 2026-10-21
+
+- [x] Shared semantic light/dark palettes, five-size typography, 4pt spacing, radius/border/target tokens; system appearance and native status-bar colors.
+- [x] Shared Button and static accessible Skeleton; token-driven form/selection/card styles across existing screens. Quiet secondary actions, non-moving pressed feedback, text-only navigation with two rows on narrow screens.
+- [x] Full-shell browser harness with explicit fake data and light/dark/loading/pending/error/empty previews. Typecheck and all 49 tests pass (integration tests need loopback permission).
+- [x] Chrome React Native Web rendering inspected at 390px, 320px and desktop; English/Kiswahili and both palettes. Farm rename validation/save, add/cancel, area editor/cancel, soil collapse/reopen/save, tenure lease fields/cancel, storage validation/add/edit/cancel, water-source validation, pH validation, conditions open/cancel, navigation, Home completion, loading/pending/error/empty states exercised.
+- [x] Palette contrast checked: text pairs >= 4.5:1; input boundaries >= 3:1. Native Android/iOS exports pass. Browser full-app export still has the previously documented SQLite WASM limitation.
+- [ ] Physical iPhone full Expo Go reload: Add farm/Edit farm name visibility, native date selector, dark/light appearance, keyboard, large system text and VoiceOver. Browser fixtures do not establish native/offline persistence behaviour.
+
+No accepted requirements removed. Sign-in follow-up remains deferred. Two-row mobile navigation trades vertical space for readable labels and >=48pt targets. Long histories still need pagination in later work. Evidence: `.local/design-refinement.png` (desktop browser, fake repository).
+
+## Shared water sources — 2026-10-21
+
+- [x] Aaron confirmed Add farm and Edit farm name are visible and working after reopening Expo Go. This resolves the missing-controls entry check; no additional device behaviour is inferred.
+- [x] Named farm-wide water-source records: type, explicit unknown reliability, optional multi-plot links, details and seasonal shortages. Existing dated plot observations and storage remain independent.
+- [x] Offline add/edit, retained form drafts, atomic outbox, retry deduplication, immutable farm parent and owned same-farm plot validation. Two-device conflicts preserve both versions for explicit recovery.
+- [x] Typecheck and all 52 tests pass; OpenAPI regenerated. Tests cover restart/lost acknowledgement, edits/unknowns, parent/owner/schema rejection and conflict resolution audit.
+- [x] Actual full-shell React Native Web preview with fake repository: name error, type/reliability selection, two plot links, notes/save, edit/save, Cancel/draft restoration, both languages and light/dark inspected. Screenshot .local/water-source-ui.png.
+- [ ] Native phone source keyboard/offline restart/reconnect/accessibility check after full Expo Go reload.
+- [ ] Irrigation methods/coverage/pumping costs and remaining P2 requirements remain open. Sign-in remains deferred; all R01–R16 retained.
+
+No credentials or external verified data are required. Source links indicate use, not measured volume, irrigation coverage or safe water.
+
+- [x] Shared-source Android/iOS bundle exports passed.
+
+- [ ] Follow-up blocker: Aaron reports black screen/render errors involving pick. Clean Expo restart initiated; exact native error/stack and reload outcome pending. Do not claim native source workflow passed; see validation.md.
+
+- [x] Aaron confirms the app loads and works on iPhone after clean Expo restart and corrected LAN QR (192.168.1.8). Current render/connection blocker cleared; original pick-exception root cause unproven. Detailed source/offline/accessibility checks remain pending.
+
+## Irrigation methods and coverage — 2026-10-21
+
+- [x] Dated plot irrigation snapshots: unknown/no irrigation/known methods, multiple methods, optional irrigated area and notes. No irrigation stores zero; blank known coverage remains null/unknown. Overlap is counted once, not summed by method.
+- [x] Immutable history, offline drafts/outbox/retry, matching owned farm/plot and future-date validation. Plot-area snapshot is captured when saved, and coverage must fit it. Server verifies that snapshot exists in the plot's current or historical areas, allowing valid offline saves after another device changes plot size.
+- [x] Area-entry draft retains its unit; canonical square metres and saved plot area preserve percentages across later revisions. No inferred coverage from source/storage links or water quantity advice.
+- [x] Typecheck, 55 tests, regenerated OpenAPI and Android/iOS exports pass.
+- [x] Rendered full-shell browser with fake repository: required-method error, area exceeding plot error, multiple methods, Cancel/draft restore, successful save/history, explicit no-irrigation and unknown states, English/Kiswahili, light/dark and 390px layout checked. Evidence .local/irrigation-ui.png.
+- [ ] iPhone native form/date picker/keyboard and offline restart/reconnect check after full Expo Go reload.
+- [ ] Pumping costs, links from irrigation records to specific water resources, remaining machinery/labour/infrastructure and land workflows remain pending. All accepted R01–R16 and deferred sign-in remain retained.
+
+No credentials or external verified data needed. These records are self-reported and do not verify water quantity/safety or surveyed area. Native services were stopped before shared-schema changes and restarted with a clean cache at the verified 192.168.1.8 address.

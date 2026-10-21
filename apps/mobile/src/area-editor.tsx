@@ -1,4 +1,5 @@
-import { controls } from './control-styles';
+import { usePalette, space, type, line, radius, border, type Colors } from './design-tokens';
+import { makeControls } from './control-styles';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { areaToSquareMetres, squareMetresToArea, validAreaUnit, type AreaUnit } from '../../../packages/domain';
@@ -8,6 +9,8 @@ import { useApp } from './app-state';
 type Draft = {amount: string; unit: AreaUnit; effectiveDate: string; reason: 'correction' | 'expansion' | 'reduction'};
 const reasons = ['correction', 'expansion', 'reduction'] as const;
 export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: string; onClose: () => void}) {
+ const colors = usePalette(); const controls = makeControls(colors); const styles = makeStyles(colors, controls);
+
   const {repo, areaUnit, busy, text, action, sync, setMessage, displayArea} = useApp();
   const recordId = plotId ?? farmId;
   const farm = plotId ? repo!.plots(farmId).find(r => r.id === plotId)! : repo!.get(farmId)!;
@@ -16,7 +19,7 @@ export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: 
     if (saved) {
       try { const value = JSON.parse(saved); if (typeof value.amount === 'string' && typeof value.effectiveDate === 'string' && reasons.includes(value.reason)) return {...value, unit: validAreaUnit(value.unit)}; } catch { /* Retain malformed metadata; offer a fresh form. */ }
     }
-    return {amount: farm.data.kind !== 'task' && farm.data.areaM2 !== null ? String(squareMetresToArea(farm.data.areaM2, areaUnit)) : '', unit: areaUnit, effectiveDate: todayInKenya(), reason: 'correction'};
+    return {amount: (farm.data.kind === 'farm' || farm.data.kind === 'plot') && farm.data.areaM2 !== null ? String(squareMetresToArea(farm.data.areaM2, areaUnit)) : '', unit: areaUnit, effectiveDate: todayInKenya(), reason: 'correction'};
   });
   const [error, setError] = useState<MessageKey | null>(null);
   const update = (value: Partial<Draft>) => {
@@ -39,7 +42,7 @@ export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: 
   });
   return <View style={styles.card}>
     <Text style={styles.heading}>{text(plotId ? 'changePlotArea' : 'changeArea')}</Text>
-    <Text style={styles.body}>{text('currentArea')}: {farm.data.kind !== 'task' ? displayArea(farm.data.areaM2) : text('unknown')}</Text>
+    <Text style={styles.body}>{text('currentArea')}: {(farm.data.kind === 'farm' || farm.data.kind === 'plot') ? displayArea(farm.data.areaM2) : text('unknown')}</Text>
     <Text style={styles.label}>{text('newArea')} · {text(draft.unit)}</Text>
     <TextInput accessibilityLabel={text('newArea') + ' ' + text(draft.unit)} editable={!busy} style={styles.input} value={draft.amount} onChangeText={amount => update({amount})} keyboardType="decimal-pad" maxLength={30} />
     <Text style={styles.label}>{text('effectiveDate')}</Text>
@@ -52,10 +55,10 @@ export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: 
     <Pressable accessibilityRole="button" disabled={busy} onPress={onClose} style={({pressed}) => [styles.button, controls.secondary, busy && controls.disabled, pressed && controls.pressed]}><Text style={[controls.buttonText, controls.secondaryText]}>{text('cancel')}</Text></Pressable>
   </View>;
 }
-const styles = StyleSheet.create({
-  card: {padding: 20, borderRadius: 20, backgroundColor: '#fff', gap: 14, borderWidth: 1, borderColor: '#dbe2d9'},
-  heading: {fontSize: 23, fontWeight: '700', color: '#183e2d'}, label: {fontSize: 16, fontWeight: '600', color: '#183e2d'}, body: {fontSize: 17, lineHeight: 26, color: '#38473d'},
+const makeStyles = (colors: Colors, controls: ReturnType<typeof makeControls>) => StyleSheet.create({
+  card: {padding: space.xl, borderRadius: radius.card, backgroundColor: colors.surface, gap: space.lg, borderWidth: border.hairline, borderColor: colors.border},
+  heading: {fontSize: type.heading, fontWeight: '700', color: colors.textPrimary}, label: {fontSize: type.body, fontWeight: '600', color: colors.textPrimary}, body: {fontSize: type.body, lineHeight: line.body, color: colors.textSecondary},
   input: controls.input,
   choice: controls.choice, selected: controls.selected,
-  button: controls.button, buttonText: controls.buttonText, error: {fontSize: 15, color: '#9b2525'},
+  button: controls.button, buttonText: controls.buttonText, error: {fontSize: type.body, color: colors.danger},
 });

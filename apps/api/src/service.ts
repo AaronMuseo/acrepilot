@@ -1,4 +1,4 @@
-import { areaChangeError } from '../../../packages/domain/land';
+import { areaChangeError, todayInKenya } from '../../../packages/domain/land';
 import { createHash, randomInt, randomBytes, randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import { codeRequestSchema, verifySchema, pushSchema, passwordLoginSchema, setPasswordSchema, refreshSchema, type Ack, type Operation, type ServerRecord } from '../../../packages/contracts';
@@ -140,9 +140,14 @@ export class SliceService {
       if (existing && existing.owner_id !== ownerId) ack = { operationId: op.operationId, status: 'invalid', code: 'NOT_FOUND' };
       else if ((existing?.version ?? 0) !== op.baseVersion || existing?.deleted) ack = { operationId: op.operationId, status: 'conflict', record: existing ? asRecord(existing) : undefined };
       else if (existing && existing.data.kind !== op.data.kind) ack = { operationId: op.operationId, status: 'invalid', code: 'TYPE_IMMUTABLE' };
+      else if (existing?.data.kind === 'waterSource' && op.data.kind === 'waterSource' && existing.data.farmId !== op.data.farmId) ack = {operationId:op.operationId,status:'invalid',code:'PARENT_IMMUTABLE'};
+      else if (existing?.data.kind === 'waterStorage' && op.data.kind === 'waterStorage' && existing.data.farmId !== op.data.farmId) ack = {operationId:op.operationId,status:'invalid',code:'PARENT_IMMUTABLE'};
       else if (existing?.data.kind === 'plot' && op.data.kind === 'plot' && existing.data.farmId !== op.data.farmId) ack = {operationId: op.operationId, status: 'invalid', code: 'PARENT_IMMUTABLE'};
-      else if (op.data.kind !== 'task' && areaChangeError(existing?.data, op.data)) ack = {operationId: op.operationId, status: 'invalid', code: areaChangeError(existing?.data, op.data)!};
+      else if ((op.data.kind === 'farm' || op.data.kind === 'plot') && areaChangeError(existing?.data, op.data)) ack = {operationId: op.operationId, status: 'invalid', code: areaChangeError(existing?.data, op.data)!};
+      else if ((op.data.kind === 'condition' || op.data.kind === 'waterObservation' || op.data.kind === 'soilTest' || op.data.kind === 'tenure' || op.data.kind === 'plotCondition' || op.data.kind === 'irrigation') && (existing || op.data.observedDate > todayInKenya())) ack = {operationId: op.operationId, status: 'invalid', code: existing ? 'OBSERVATION_IMMUTABLE' : 'OBSERVATION_DATE_INVALID'};
+      else if (!(await this.validCopy(tx,ownerId,op))) ack = {operationId:op.operationId,status:'invalid',code:'COPY_SOURCE_NOT_FOUND'};
       else if (!(await this.validParent(tx, ownerId, op))) ack = { operationId: op.operationId, status: 'invalid', code: 'PARENT_NOT_FOUND' };
+      else if (!(await this.irrigationSnapshotFits(tx,ownerId,op))) ack = {operationId:op.operationId,status:'invalid',code:'IRRIGATION_AREA_SNAPSHOT_INVALID'};
       else if (!(await this.areaFits(tx, ownerId, op))) ack = {operationId: op.operationId, status: existing ? 'conflict' : 'invalid', code: 'PLOT_AREA_EXCEEDS_FARM', record: existing ? asRecord(existing) : undefined};
       else {
         const record: ServerRecord = { id: op.recordId, version: op.baseVersion + 1, data: op.data, deleted: false };
@@ -155,8 +160,14 @@ export class SliceService {
       return ack;
     });
   }
+  private async irrigationSnapshotFits(tx:Queryable,ownerId:string,op:Operation){
+    if(op.data.kind!=='irrigation')return true;
+    const plot=(await tx.query("SELECT data FROM records WHERE id=$1 AND owner_id=$2 AND NOT deleted AND data->>'kind'='plot'",[op.data.plotId,ownerId])).rows[0]?.data;
+    const snapshot=op.data.plotAreaM2;
+    return !!plot && (plot.areaM2===snapshot || (plot.areaHistory??[]).some((revision:{areaM2:number|null})=>revision.areaM2===snapshot));
+  }
   private async areaFits(tx: Queryable, ownerId: string, op: Operation) {
-    if (op.data.kind === 'task') return true;
+    if (op.data.kind !== 'farm' && op.data.kind !== 'plot') return true;
     const farmId = op.data.kind === 'farm' ? op.recordId : op.data.farmId;
     const farm = op.data.kind === 'farm' ? op.data : (await tx.query('SELECT data FROM records WHERE id=$1 AND owner_id=$2', [farmId, ownerId])).rows[0]?.data;
     if (!farm || farm.areaM2 === null) return true;
@@ -164,8 +175,18 @@ export class SliceService {
     const sum = plots.filter(p => p.id !== op.recordId).reduce((value, p) => value + (p.data.areaM2 ?? 0), 0) + (op.data.kind === 'plot' ? op.data.areaM2 ?? 0 : 0);
     return sum <= farm.areaM2 + 0.000001;
   }
+  private async validCopy(tx: Queryable, ownerId: string, op: Operation) {
+    if(op.data.kind!=='condition'||!op.data.copiedFrom)return true;
+    const source=(await tx.query("SELECT data FROM records WHERE id=$1 AND owner_id=$2 AND NOT deleted AND data->>'kind'='condition'",[op.data.copiedFrom,ownerId])).rows[0];
+    return !!source && source.data.farmId===op.data.farmId && source.data.plotId!==op.data.plotId;
+  }
   private async validParent(tx: Queryable, ownerId: string, op: Operation) {
     if (op.data.kind === 'farm') return true;
+    if(op.data.kind==='waterStorage'||op.data.kind==='waterSource'){for(const plotId of op.data.plotIds){const plot=(await tx.query("SELECT data FROM records WHERE id=$1 AND owner_id=$2 AND NOT deleted AND data->>'kind'='plot'",[plotId,ownerId])).rows[0];if(!plot||plot.data.farmId!==op.data.farmId)return false;}}
+    if (op.data.kind === 'condition' || op.data.kind === 'waterObservation' || op.data.kind === 'soilTest' || op.data.kind === 'tenure' || op.data.kind === 'plotCondition' || op.data.kind === 'irrigation') {
+      const plot = (await tx.query("SELECT data FROM records WHERE id=$1 AND owner_id=$2 AND NOT deleted AND data->>'kind'='plot'", [op.data.plotId, ownerId])).rows[0];
+      if (!plot || plot.data.farmId !== op.data.farmId) return false;
+    }
     return (await tx.query("SELECT id FROM records WHERE id=$1 AND owner_id=$2 AND NOT deleted AND data->>'kind'='farm'", [op.data.farmId, ownerId])).rows.length > 0;
   }
   async pull(ownerId: string, rawCursor: unknown) {

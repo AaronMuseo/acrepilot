@@ -7,6 +7,8 @@ A Kenya-first farming companion built around local saves, clear sync feedback, a
 > **Development preview · P0/P1 foundations + initial P2 farm tools**
 > The current app uses test accounts and labelled fixture content. It is not ready for production or agricultural decision-making.
 
+Current delivery status: [done and pending checklist](docs/checklist.md).
+
 ## What works today
 
 - **Navigation and settings:** Home, Farm, Crops, Tools, Markets, and More; saved language and account-specific acres/hectares/square-metres preferences. Tools and Markets clearly show unavailable states.
@@ -14,6 +16,7 @@ A Kenya-first farming companion built around local saves, clear sync feedback, a
 - **Bilingual setup:** English and Kiswahili, with a development verification-code flow.
 - **Farm setup:** multiple farms with a default plot each, farm switching and name edits, optional area, and explicit unknown soil, water, and location states.
 - **Land records:** dated farm-area revisions and named plots with per-farm selection. Plot areas retain dated history and measured totals are checked against farm area. Subdivision remains pending; adding plots does not change farm totals.
+- **Plot records:** dated soil/water observations, manual pH reports and owned/leased/unknown tenure history with offline saving.
 - **Offline task updates:** complete or reopen a task, save locally, and queue changes for sync.
 - **Sync recovery:** automatic foreground retries, manual retry, visible pending status, and a successful-sync timestamp.
 - **Conflict handling:** retain both local and server values and let the user choose explicitly.
