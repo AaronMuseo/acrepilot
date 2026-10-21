@@ -1,5 +1,4 @@
-import { usePalette, space, type, line, radius, border, type Colors } from './design-tokens';
-import { makeControls } from './control-styles';
+import { controls } from './control-styles';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { areaToSquareMetres, squareMetresToArea, validAreaUnit, type AreaUnit } from '../../../packages/domain';
@@ -8,41 +7,37 @@ import type { MessageKey } from '../../../packages/translations';
 import { useApp } from './app-state';
 type Draft = {amount: string; unit: AreaUnit; effectiveDate: string; reason: 'correction' | 'expansion' | 'reduction'};
 const reasons = ['correction', 'expansion', 'reduction'] as const;
-export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: string; onClose: () => void}) {
- const colors = usePalette(); const controls = makeControls(colors); const styles = makeStyles(colors, controls);
-
+export function AreaEditor({farmId, onClose}: {farmId: string; onClose: () => void}) {
   const {repo, areaUnit, busy, text, action, sync, setMessage, displayArea} = useApp();
-  const recordId = plotId ?? farmId;
-  const farm = plotId ? repo!.plots(farmId).find(r => r.id === plotId)! : repo!.get(farmId)!;
+  const farm = repo!.get(farmId)!;
   const [draft, setDraft] = useState<Draft>(() => {
-    const saved = repo!.meta('draftAreaRevision:' + recordId);
+    const saved = repo!.meta('draftAreaRevision:' + farmId);
     if (saved) {
       try { const value = JSON.parse(saved); if (typeof value.amount === 'string' && typeof value.effectiveDate === 'string' && reasons.includes(value.reason)) return {...value, unit: validAreaUnit(value.unit)}; } catch { /* Retain malformed metadata; offer a fresh form. */ }
     }
-    return {amount: (farm.data.kind === 'farm' || farm.data.kind === 'plot') && farm.data.areaM2 !== null ? String(squareMetresToArea(farm.data.areaM2, areaUnit)) : '', unit: areaUnit, effectiveDate: todayInKenya(), reason: 'correction'};
+    return {amount: farm.data.kind === 'farm' && farm.data.areaM2 !== null ? String(squareMetresToArea(farm.data.areaM2, areaUnit)) : '', unit: areaUnit, effectiveDate: todayInKenya(), reason: 'correction'};
   });
   const [error, setError] = useState<MessageKey | null>(null);
   const update = (value: Partial<Draft>) => {
     const next = {...draft, ...value};
-    try {repo!.setMeta('draftAreaRevision:' + recordId, JSON.stringify(next)); setDraft(next); setError(null);} catch {setError('error');}
+    try {repo!.setMeta('draftAreaRevision:' + farmId, JSON.stringify(next)); setDraft(next); setError(null);} catch {setError('error');}
   };
   const save = () => void action(() => {
     const value = Number(draft.amount);
-    if (!draft.amount.trim() || !Number.isFinite(value) || value <= 0) {setError('requiredArea'); return;}
+    if (!draft.amount.trim() || !Number.isFinite(value) || value <= 0) {setError('invalidArea'); return;}
     const area = areaToSquareMetres(value, draft.unit);
     if (area > 1e9) {setError('invalidArea'); return;}
     try {
-      if (plotId) repo!.revisePlotArea(farmId, plotId, area, draft.effectiveDate, draft.reason);
-      else repo!.reviseFarmArea(farmId, area, draft.effectiveDate, draft.reason);
-      repo!.setMeta('draftAreaRevision:' + recordId, ''); setMessage('saved'); onClose(); void sync();
+      repo!.reviseFarmArea(farmId, area, draft.effectiveDate, draft.reason);
+      repo!.setMeta('draftAreaRevision:' + farmId, ''); setMessage('saved'); onClose(); void sync();
     } catch (error) {
-      const errors: Record<string, MessageKey> = {PLOT_AREA_EXCEEDS_FARM: 'plotAreaExceedsFarm', AREA_DATE_INVALID: 'areaDateInvalid', AREA_REASON_INVALID: 'areaReasonInvalid', AREA_UNCHANGED: 'areaUnchanged'};
+      const errors: Record<string, MessageKey> = {AREA_DATE_INVALID: 'areaDateInvalid', AREA_REASON_INVALID: 'areaReasonInvalid', AREA_UNCHANGED: 'areaUnchanged'};
       setError(errors[error instanceof Error ? error.message : ''] ?? 'error');
     }
   });
   return <View style={styles.card}>
-    <Text style={styles.heading}>{text(plotId ? 'changePlotArea' : 'changeArea')}</Text>
-    <Text style={styles.body}>{text('currentArea')}: {(farm.data.kind === 'farm' || farm.data.kind === 'plot') ? displayArea(farm.data.areaM2) : text('unknown')}</Text>
+    <Text style={styles.heading}>{text('changeArea')}</Text>
+    <Text style={styles.body}>{text('currentArea')}: {farm.data.kind === 'farm' ? displayArea(farm.data.areaM2) : text('unknown')}</Text>
     <Text style={styles.label}>{text('newArea')} · {text(draft.unit)}</Text>
     <TextInput accessibilityLabel={text('newArea') + ' ' + text(draft.unit)} editable={!busy} style={styles.input} value={draft.amount} onChangeText={amount => update({amount})} keyboardType="decimal-pad" maxLength={30} />
     <Text style={styles.label}>{text('effectiveDate')}</Text>
@@ -55,10 +50,10 @@ export function AreaEditor({farmId, plotId, onClose}: {farmId: string; plotId?: 
     <Pressable accessibilityRole="button" disabled={busy} onPress={onClose} style={({pressed}) => [styles.button, controls.secondary, busy && controls.disabled, pressed && controls.pressed]}><Text style={[controls.buttonText, controls.secondaryText]}>{text('cancel')}</Text></Pressable>
   </View>;
 }
-const makeStyles = (colors: Colors, controls: ReturnType<typeof makeControls>) => StyleSheet.create({
-  card: {padding: space.xl, borderRadius: radius.card, backgroundColor: colors.surface, gap: space.lg, borderWidth: border.hairline, borderColor: colors.border},
-  heading: {fontSize: type.heading, fontWeight: '700', color: colors.textPrimary}, label: {fontSize: type.body, fontWeight: '600', color: colors.textPrimary}, body: {fontSize: type.body, lineHeight: line.body, color: colors.textSecondary},
+const styles = StyleSheet.create({
+  card: {padding: 20, borderRadius: 20, backgroundColor: '#fff', gap: 14, borderWidth: 1, borderColor: '#dbe2d9'},
+  heading: {fontSize: 23, fontWeight: '700', color: '#183e2d'}, label: {fontSize: 16, fontWeight: '600', color: '#183e2d'}, body: {fontSize: 17, lineHeight: 26, color: '#38473d'},
   input: controls.input,
   choice: controls.choice, selected: controls.selected,
-  button: controls.button, buttonText: controls.buttonText, error: {fontSize: type.body, color: colors.danger},
+  button: controls.button, buttonText: controls.buttonText, error: {fontSize: 15, color: '#9b2525'},
 });
